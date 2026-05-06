@@ -1,0 +1,9 @@
+sample:
+  name: Rocket Pi PB1 loopback
+
+tests:
+  sample.basic.rocket_pi_pb1_loopback:
+    tags:
+      - gpio
+    platform_allow:
+      - rocket_pi/stm32f401xe

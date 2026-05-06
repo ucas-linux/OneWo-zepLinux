@@ -1,0 +1,12 @@
+sample:
+  name: PB1 PB2 extended interconnect test
+
+tests:
+  sample.basic.pb1_pb2_extended:
+    platform_allow:
+      - rocket_pi/stm32f401xe
+    integration_platforms:
+      - rocket_pi/stm32f401xe
+    tags:
+      - samples
+      - gpio

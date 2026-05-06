@@ -1,0 +1,14 @@
+sample:
+  name: PB1 PB2 benchmark suite
+
+tests:
+  sample.basic.pb1_pb2_benchmark:
+    platform_allow:
+      - rocket_pi/stm32f401xe
+    integration_platforms:
+      - rocket_pi/stm32f401xe
+    tags:
+      - samples
+      - gpio
+      - irq
+      - timing

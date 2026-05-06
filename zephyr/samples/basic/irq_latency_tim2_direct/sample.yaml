@@ -1,0 +1,13 @@
+sample:
+  name: Direct TIM2 IRQ handler latency
+
+tests:
+  sample.basic.irq_latency_tim2_direct:
+    platform_allow:
+      - rocket_pi/stm32f401xe
+    integration_platforms:
+      - rocket_pi/stm32f401xe
+    tags:
+      - samples
+      - irq
+      - timing

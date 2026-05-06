@@ -1,0 +1,2 @@
+config BOARD_ROCKET_PI
+	select SOC_STM32F401XE
