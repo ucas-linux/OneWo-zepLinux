@@ -1,7 +1,0 @@
-# ALS31300 Device Tree Binding
-
-description: Allegro ALS31300 3D Linear Hall Effect Sensor
-
-compatible: "allegro,als31300"
-
-include: [sensor-device.yaml, i2c-device.yaml]

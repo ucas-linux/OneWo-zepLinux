@@ -1,4 +1,0 @@
-common:
-  tags: smbus
-tests:
-  drivers.smbus.pec: {}

@@ -1,6 +1,0 @@
-shield:
-  name: mikroe_ambient_2_click
-  full_name: Ambient 2 Click
-  vendor: mikroe
-  supported_features:
-    - sensor

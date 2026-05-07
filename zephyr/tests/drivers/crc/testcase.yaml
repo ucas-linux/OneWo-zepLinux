@@ -1,7 +1,0 @@
-tests:
-  drivers.crc:
-    depends_on: crc
-    tags:
-      - drivers
-      - crc
-    harness: ztest

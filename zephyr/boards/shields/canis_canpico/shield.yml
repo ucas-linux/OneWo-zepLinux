@@ -1,6 +1,0 @@
-shields:
-  - name: canis_canpico
-    full_name: Canis Labs CANPico
-    vendor: canis
-    supported_features:
-      - can
