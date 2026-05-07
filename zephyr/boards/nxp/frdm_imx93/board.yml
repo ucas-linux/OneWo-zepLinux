@@ -1,6 +1,0 @@
-board:
-  name: frdm_imx93
-  full_name: FRDM-IMX93
-  vendor: nxp
-  socs:
-  - name: mimx9352

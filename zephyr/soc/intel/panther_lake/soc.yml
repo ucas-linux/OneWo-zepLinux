@@ -1,4 +1,0 @@
-vendor: intel
-comment: "Intel Panther Lake SoC"
-socs:
-- name: panther_lake
