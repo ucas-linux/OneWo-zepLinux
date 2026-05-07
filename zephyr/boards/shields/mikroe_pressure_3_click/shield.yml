@@ -1,6 +1,0 @@
-shield:
-  name: mikroe_pressure_3_click
-  full_name: Pressure 3 Click
-  vendor: mikroe
-  supported_features:
-    - sensor

@@ -1,6 +1,0 @@
-if BOARD_ROCKET_PI
-
-config GPIO
-	default y
-
-endif

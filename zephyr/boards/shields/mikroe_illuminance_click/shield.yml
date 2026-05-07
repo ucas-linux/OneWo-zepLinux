@@ -1,6 +1,0 @@
-shield:
-  name: mikroe_illuminance_click
-  full_name: Illuminance Click
-  vendor: mikroe
-  supported_features:
-    - sensor

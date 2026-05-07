@@ -1,8 +1,0 @@
-sample:
-  name: One-shot cyclictest style latency
-
-tests:
-  sample.basic.irq_latency_cyclictest_once:
-    tags:
-      - samples
-      - timing

@@ -1,1 +1,0 @@
-list(APPEND EXTRA_DTC_FLAGS "-Wno-spi_bus_bridge")

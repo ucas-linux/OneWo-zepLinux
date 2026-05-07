@@ -1,6 +1,0 @@
-board:
-  name: quill_nrf52840_mesh
-  full_name: Quill nRF52840 Mesh
-  vendor: fobe
-  socs:
-  - name: nrf52840
