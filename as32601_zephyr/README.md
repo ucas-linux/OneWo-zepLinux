@@ -6,12 +6,19 @@ AS32X601 芯片的 Zephyr RTOS 板级支持包（BSP），基于 Zephyr 4.3.0。
 
 ```
 as32601_zephyr/
-└── zephyr/zephyrproject/       # West 工作区（含 AS32X601 补丁的 Zephyr 主树）
-    ├── zephyr/soc/ansilic/     # SoC 适配
-    ├── zephyr/boards/ansilic/  # 板级配置
-    ├── zephyr/dts/riscv/ansilic/  # 设备树
-    ├── zephyr/samples/ansilic/ # AS32X601 示例工程
-    └── modules/hal/ansilic/    # AS32X601 HAL 模块
+├── zephyr/zephyrproject/       # West 工作区（含 AS32X601 补丁的 Zephyr 主树）
+│   ├── zephyr/soc/ansilic/     # SoC 适配
+│   ├── zephyr/boards/ansilic/  # 板级配置
+│   ├── zephyr/dts/riscv/ansilic/  # 设备树
+│   ├── zephyr/samples/ansilic/ # AS32X601 示例工程
+│   └── modules/hal/ansilic/    # AS32X601 HAL 模块
+└── tools/openocd/              # AS32X601 专用 OpenOCD
+    ├── bin/openocd             # OpenOCD 可执行文件
+    ├── lib/                    # 依赖库
+    ├── cfg/                    # 烧录配置文件
+    ├── firmware/               # 示例固件
+    ├── run_openocd.sh          # 启动脚本
+    └── flash_bin.sh            # 烧录脚本
 ```
 
 ## 环境准备
@@ -59,11 +66,14 @@ west build -p -b as32x601_evb/as32x601 zephyr/samples/ansilic/as32x601_gpio_blin
 
 ## 烧录
 
-需要 J-Link 调试器。WSL2 用户需通过 [usbipd-win](https://github.com/dorssel/usbipd-win) 转发 USB 设备。
+仓库内置了针对 AS32X601 定制的 OpenOCD（位于 `tools/openocd/`），支持通过 J-Link 调试器进行烧录。
+
+### 使用 west 烧录
 
 ```bash
 west flash -d <build目录>
 ```
+
 
 ## 支持的示例
 
