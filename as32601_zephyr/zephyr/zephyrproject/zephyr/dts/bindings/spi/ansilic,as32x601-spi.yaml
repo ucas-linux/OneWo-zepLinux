@@ -1,0 +1,17 @@
+description: Ansilic AS32X601 SPI controller
+
+compatible: "ansilic,as32x601-spi"
+
+include: [spi-controller.yaml, pinctrl-device.yaml]
+
+properties:
+  reg:
+    required: true
+
+  clock-frequency:
+    type: int
+    required: true
+    description: Input clock frequency for the SPI controller in Hz
+
+  interrupts:
+    required: true

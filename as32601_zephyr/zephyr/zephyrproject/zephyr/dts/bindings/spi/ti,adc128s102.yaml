@@ -1,0 +1,5 @@
+description: TI ADC128S102 8-channel 12-bit A/D converter
+
+compatible: "ti,adc128s102"
+
+include: spi-device.yaml

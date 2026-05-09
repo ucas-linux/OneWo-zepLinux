@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_SERIES_AS32X601
+	bool
+	select SOC_FAMILY_ANSILIC
+
+config SOC_SERIES
+	default "as32x601" if SOC_SERIES_AS32X601
+
+rsource "Kconfig.soc.*"

@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: Apache-2.0
+
+description: Ansilic AS32X601 GPIO controller
+
+compatible: "ansilic,as32x601-gpio"
+
+include: [gpio-controller.yaml, base.yaml]
+
+properties:
+  reg:
+    required: true
+
+  interrupts:
+    required: true
+
+  interrupt-parent:
+    required: true
+
+  "#gpio-cells":
+    const: 2
+
+gpio-cells:
+  - pin
+  - flags
