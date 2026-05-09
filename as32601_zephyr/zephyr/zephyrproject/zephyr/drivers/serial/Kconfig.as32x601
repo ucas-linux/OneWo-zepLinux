@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config UART_AS32X601
+	bool "Ansilic AS32X601 UART driver"
+	default y
+	depends on SERIAL
+	select SERIAL_HAS_DRIVER
+	select PINCTRL
+	help
+	  Enable native UART driver for Ansilic AS32X601 USART instances.

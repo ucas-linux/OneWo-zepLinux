@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+
+description: Ansilic AS32X601 custom PLIC interrupt controller
+
+compatible: "ansilic,as32x601-plic"
+
+include: riscv,plic0.yaml
+
+properties:
+  riscv,ndev:
+    type: int
+    required: true
+    description: Number of external interrupts supported

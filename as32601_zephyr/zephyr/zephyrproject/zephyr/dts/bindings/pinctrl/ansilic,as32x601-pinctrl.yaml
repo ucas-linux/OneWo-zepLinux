@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Ansilic AS32X601 pin controller.
+
+  All device pin configurations should be placed in child nodes of the
+  `pinctrl` node. Each child node encodes a device state, and each state
+  contains one or more groups with a `pinmux` array and shared pin properties.
+
+compatible: "ansilic,as32x601-pinctrl"
+
+include: base.yaml
+
+child-binding:
+  description: Definitions for an AS32X601 pinctrl state.
+  child-binding:
+    include:
+      - name: pincfg-node.yaml
+        property-allowlist:
+          - bias-pull-up
+          - bias-pull-down
+          - drive-open-drain
+          - drive-push-pull
+          - output-high
+          - output-low
+          - input-enable
+          - output-enable
+
+    properties:
+      pinmux:
+        required: true
+        type: array
+        description: Encoded port/pin/alternate-function selection.
+      slew-rate:
+        type: int
+        description: Encoded drive strength value.

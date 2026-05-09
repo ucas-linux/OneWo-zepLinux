@@ -1,0 +1,6 @@
+board:
+  name: as32x601_evb
+  full_name: Ansilic AS32X601 Evaluation Board
+  vendor: ansilic
+  socs:
+    - name: as32x601
