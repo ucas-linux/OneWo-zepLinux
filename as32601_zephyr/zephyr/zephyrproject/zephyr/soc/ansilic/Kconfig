@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_FAMILY_ANSILIC
+	bool
+	select RISCV
+	select BUILD_OUTPUT_HEX
+	imply XIP
+
+if SOC_FAMILY_ANSILIC
+
+config VECTOR_TABLE_SIZE
+	int "Number of Interrupt and Exception Vectors"
+	range 16 256
+
+rsource "*/Kconfig"
+
+endif # SOC_FAMILY_ANSILIC

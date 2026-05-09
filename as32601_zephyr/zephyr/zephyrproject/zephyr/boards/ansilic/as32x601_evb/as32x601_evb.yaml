@@ -1,0 +1,13 @@
+identifier: as32x601_evb
+name: Ansilic AS32X601 Evaluation Board
+type: mcu
+arch: riscv
+simulation: []
+toolchain:
+  - cross-compile
+  - zephyr
+ram: 512
+flash: 2048
+supported:
+  - gpio
+  - serial

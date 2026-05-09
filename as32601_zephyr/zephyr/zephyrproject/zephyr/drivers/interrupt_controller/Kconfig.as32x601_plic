@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config AS32X601_PLIC
+	bool "Ansilic AS32X601 PLIC"
+	default y
+	depends on DT_HAS_ANSILIC_AS32X601_PLIC_ENABLED
+	help
+	  AS32X601 custom PLIC with Zephyr interrupt-controller integration.

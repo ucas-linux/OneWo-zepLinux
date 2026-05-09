@@ -1,0 +1,6 @@
+family:
+  - name: ansilic
+    series:
+      - name: as32x601
+        socs:
+          - name: as32x601

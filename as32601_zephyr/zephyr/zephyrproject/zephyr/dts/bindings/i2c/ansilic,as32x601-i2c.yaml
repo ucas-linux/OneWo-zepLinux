@@ -1,0 +1,17 @@
+description: Ansilic AS32X601 I2C controller
+
+compatible: "ansilic,as32x601-i2c"
+
+include: [i2c-controller.yaml, pinctrl-device.yaml]
+
+properties:
+  reg:
+    required: true
+
+  clock-frequency:
+    type: int
+    required: true
+    description: Input clock frequency for the I2C controller in Hz
+
+  interrupts:
+    required: true
