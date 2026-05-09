@@ -1,0 +1,5 @@
+board:
+  name: rocket_pi
+  vendor: others
+  socs:
+    - name: stm32f401xe
