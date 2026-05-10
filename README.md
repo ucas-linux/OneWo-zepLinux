@@ -5,8 +5,8 @@
 ## 核心亮点
 
 - 4 类 Linux 风格调度器（DL/RT/CFS/Idle）深度集成到 Zephyr 内核，真正驱动 `k_thread` 调度决策
-- 当前文档已整理 56 个 Linux/POSIX 兼容接口，覆盖线程、进程、调度、信号、内存、设备、文件系统、网络与 I/O 多路复用等模块
-- 目标平台： rocket_pi/stm32f401xe
+- 当前文档已整理 39 个 Linux/POSIX 兼容接口，覆盖线程、进程、调度、信号、内存、设备与 I/O 多路复用等模块
+- 目标平台： rocket_pi/stm32f401xe (Arm Cortex M3)， 国科安芯/as32x601 (RISC-V 32)
 
 ## 目录结构
 
