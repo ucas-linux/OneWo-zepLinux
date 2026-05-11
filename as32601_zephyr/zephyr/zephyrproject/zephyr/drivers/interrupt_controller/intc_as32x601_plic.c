@@ -189,6 +189,9 @@ static void as32x601_plic_mext_dispatch(uint32_t irq)
 	as32x601_plic_exti.IDBuffer[as32x601_plic_exti.Index++] = (uint8_t)irq;
 
 	switch (irq) {
+	case TIM0_IRQn:
+		TIM0_IRQ_Handler();
+		break;
 	case GPIOA_IRQn:
 		GPIOA_IRQ_Handler();
 		break;
