@@ -1,0 +1,15 @@
+# Copyright (c) 2024 Ansilic Technology Co., Ltd
+# SPDX-License-Identifier: Apache-2.0
+
+description: Ansilic AS32X601 Timer peripheral used as counter
+
+compatible: "ansilic,as32x601-timer"
+
+include: [base.yaml]
+
+properties:
+  reg:
+    required: true
+
+  interrupts:
+    required: true
