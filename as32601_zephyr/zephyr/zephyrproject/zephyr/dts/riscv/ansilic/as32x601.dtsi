@@ -177,6 +177,14 @@
 			#size-cells = <0>;
 			status = "disabled";
 		};
+
+		tim0: timer@41000000 {
+			compatible = "ansilic,as32x601-timer";
+			reg = <0x41000000 0x1000>;
+			interrupt-parent = <&plic>;
+			interrupts = <5 1>;
+			status = "disabled";
+		};
 	};
 
 	sram0: memory@20000000 {
