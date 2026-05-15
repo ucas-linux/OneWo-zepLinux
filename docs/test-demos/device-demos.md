@@ -1,10 +1,10 @@
-# 设备接口 Demo
+# Device Interface Demos
 
-本文件用于规划设备控制路径的 demo，并把文档说明落到仓库中的实际目录。
+This file is used to plan device control path demos and map documentation to actual directories in the repository.
 
-## 1. 对应目录
+## 1. Corresponding Directories
 
-当前建议的设备 demo 目录为：
+Currently recommended device demo directory:
 
 ```text
 tests/demo/device/
@@ -14,69 +14,69 @@ tests/demo/device/
 └── nonblock-io-demo.md
 ```
 
-当前仓库里还没有现成的 `test_device.c`，所以这部分先以 demo 文档形式固化下来，后续再逐步补代码。
+The current repository doesn't yet have a ready-made `test_device.c`, so this part is first solidified in demo documentation form, with code to be added gradually later.
 
-## 2. 为什么单独放 `tests/demo/device/`
+## 2. Why Separate `tests/demo/device/`
 
-设备接口验证和普通单元测试不太一样，它往往需要：
+Device interface verification is quite different from ordinary unit tests, as it often requires:
 
-- 明确设备对象或板级外设
-- 说明 `fd` 的来源
-- 说明 `ioctl` 命令和参数结构
-- 说明阻塞/非阻塞时的现象差异
+- Specifying device objects or board-level peripherals
+- Explaining the source of `fd`
+- Explaining `ioctl` commands and parameter structures
+- Explaining phenomenal differences between blocking/non-blocking modes
 
-因此单独放一个目录更利于后续积累样例，而不是把所有内容都塞进一个 `test_device.c`。
+Therefore, having a separate directory is more conducive to accumulating examples later, rather than stuffing all content into a single `test_device.c`.
 
-## 3. 建议的 demo 划分
+## 3. Recommended Demo Divisions
 
-### 3.1 GPIO 控制 demo
+### 3.1 GPIO Control Demo
 
-建议文件：`tests/demo/device/gpio-device-demo.md`
+Recommended file: `tests/demo/device/gpio-device-demo.md`
 
-建议内容：
+Recommended content:
 
-- 兼容层如何建立逻辑设备与 `fd` 的映射
-- 应用如何通过 `open()`、`write()` 或 `ioctl()` 控制 GPIO
-- 如何观察 GPIO 状态变化
+- How the compatibility layer establishes mapping between logical devices and `fd`
+- How applications control GPIO through `open()`, `write()`, or `ioctl()`
+- How to observe GPIO state changes
 
-建议后续代码落点：
+Recommended future code landing point:
 
 - `tests/demo/device/gpio_device_demo.c`
 
-### 3.2 IRQ 通知 demo
+### 3.2 IRQ Notification Demo
 
-建议文件：`tests/demo/device/irq-notify-demo.md`
+Recommended file: `tests/demo/device/irq-notify-demo.md`
 
-建议内容：
+Recommended content:
 
-- 如何触发设备中断或模拟中断
-- 应用层如何读到事件
-- 阻塞与非阻塞读取分别有什么现象
+- How to trigger device interrupts or simulate interrupts
+- How application layer reads events
+- What phenomena occur with blocking vs non-blocking reads
 
-建议后续代码落点：
+Recommended future code landing point:
 
 - `tests/demo/device/irq_notify_demo.c`
 
-### 3.3 非阻塞 I/O demo
+### 3.3 Non-Blocking I/O Demo
 
-建议文件：`tests/demo/device/nonblock-io-demo.md`
+Recommended file: `tests/demo/device/nonblock-io-demo.md`
 
-建议内容：
+Recommended content:
 
-- 如何把设备设为非阻塞模式
-- 设备无数据时的返回值
-- 重试读取后的行为
+- How to set device to non-blocking mode
+- Return values when device has no data
+- Behavior after retry reads
 
-建议后续代码落点：
+Recommended future code landing point:
 
 - `tests/demo/device/nonblock_io_demo.c`
 
-## 4. 当前与设备路径最接近的现有内容
+## 4. Current Closest Existing Content to Device Path
 
-虽然仓库里还没有独立的设备测试，但可以把下面这些位置作为后续实现入口：
+Although the repository doesn't yet have independent device tests, the following locations can serve as future implementation entry points:
 
-- 头文件：`code/include/lmz_device.h`
-- 实现：`code/src/lmz_device.c`
-- demo 资料：`tests/demo/device/`
+- Header file: `code/include/lmz_device.h`
+- Implementation: `code/src/lmz_device.c`
+- Demo materials: `tests/demo/device/`
 
-也就是说，设备路径后续最适合采取“代码接口 + demo 文档 + 板级验证”三者同步推进的方式。
+In other words, the device path is most suitable for adopting a "code interface + demo documentation + board-level validation" approach with all three advancing synchronously.

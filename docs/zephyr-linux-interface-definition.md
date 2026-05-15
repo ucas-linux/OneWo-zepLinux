@@ -1,68 +1,68 @@
-# Zephyr Linux 兼容接口定义
+# Zephyr Linux Compatible Interface Definition
 
-本文档专门说明 zepLinux 在 Zephyr 上提供的 Linux/POSIX 兼容接口定义，以及这些接口在内核中的承载方式。
+This document specifically explains the Linux/POSIX compatible interface definitions provided by zepLinux on Zephyr, and how these interfaces are implemented in the kernel.
 
-与总览文档不同，这里尽量不讲背景铺陈，而是把接口层真正需要落地的内容写清楚：
+Unlike overview documents, this focuses on the concrete implementation details of the interface layer:
 
-- 向应用暴露什么接口
-- 对这些接口承诺什么语义
-- 这些语义如何映射到 Zephyr 的线程、调度器和设备模型
-- 哪些地方是严格兼容，哪些地方是面向 MCU 场景的裁剪或约束
+- What interfaces are exposed to applications
+- What semantics are promised for these interfaces
+- How these semantics map to Zephyr's thread, scheduler, and device models
+- Which parts are strictly compatible, and which are tailored or constrained for MCU scenarios
 
-## 1. 接口层的职责边界
+## 1. Interface Layer Responsibility Boundaries
 
-在这个项目里，“Linux 兼容接口层”并不等价于把 Linux 内核原封不动搬到 Zephyr 上，而是做一层面向应用的语义兼容层。
+In this project, the "Linux compatible interface layer" does not mean transplanting the Linux kernel intact onto Zephyr, but rather creating an application-oriented semantic compatibility layer.
 
-它的职责边界可以概括为三点：
+Its responsibility boundaries can be summarized in three points:
 
-- 对上保持 Linux/POSIX 程序员熟悉的调用方式
-- 对下复用 Zephyr 现有的内核对象、驱动框架和调度机制
-- 在资源受限的 MCU 场景里，只实现项目真正需要、且能够稳定验证的语义子集
+- Maintain the calling conventions familiar to Linux/POSIX programmers at the application level
+- Reuse Zephyr's existing kernel objects, driver framework, and scheduling mechanisms at the lower level
+- In resource-constrained MCU scenarios, only implement the semantic subset that the project truly needs and can stably verify
 
-因此，这里的“兼容”不是字面上的 1:1 复制，而是“接口形态尽量不变，语义尽量贴近，底层实现允许重构”。
+Therefore, "compatibility" here is not a literal 1:1 copy, but rather "keep interface form unchanged as much as possible, semantics as close as possible, and allow underlying implementation to be refactored."
 
-## 2. 接口分类
+## 2. Interface Classification
 
-结合当前仓库的组织方式，兼容接口大体分为六类：
+Combined with the current repository organization, compatible interfaces are roughly divided into six categories:
 
-| 类别 | 关注点 | 典型接口 |
-|------|--------|----------|
-| 线程管理 | 线程创建、同步、生命周期 | `pthread_create`、`pthread_join`、互斥锁 |
-| 进程管理 | 轻量进程语义或占位接口 | `fork`、`exec`、`exit` |
-| 调度与优先级 | 调度策略、优先级、时间片 | `sched_*`、`nice`、`setpriority` |
-| 信号与定时器 | 延时、通知、简单异步控制 | `signal`、`kill`、`alarm`、`nanosleep` |
-| 内存管理 | 动态分配与兼容封装 | `malloc`、`realloc`、`free` |
-| 设备管理 | 文件描述符与控制路径 | `open`、`read`、`write`、`ioctl` |
+| Category | Focus | Typical Interfaces |
+|----------|-------|-------------------|
+| Thread Management | Thread creation, synchronization, lifecycle | `pthread_create`, `pthread_join`, mutexes |
+| Process Management | Lightweight process semantics or placeholder interfaces | `fork`, `exec`, `exit` |
+| Scheduling & Priority | Scheduling policies, priorities, timeslices | `sched_*`, `nice`, `setpriority` |
+| Signals & Timers | Delays, notifications, simple async control | `signal`, `kill`, `alarm`, `nanosleep` |
+| Memory Management | Dynamic allocation and compatibility wrappers | `malloc`, `realloc`, `free` |
+| Device Management | File descriptors and control paths | `open`, `read`, `write`, `ioctl` |
 
-本次拆分文档中，最需要详细展开的是两部分：
+In this breakdown document, two parts need detailed expansion:
 
-- 调度与优先级接口
-- 设备管理接口
+- Scheduling and priority interfaces
+- Device management interfaces
 
-原因很简单：这两部分既有较强的 Linux 语义特征，又直接触达 Zephyr 内核或驱动层，是兼容层里最容易“看起来能编译，实际语义没落地”的地方。
+The reason is simple: these two parts have strong Linux semantic characteristics and directly touch the Zephyr kernel or driver layer, making them the most likely places in the compatibility layer where things "look like they compile but semantics aren't actually implemented."
 
-## 3. 调度接口定义
+## 3. Scheduling Interface Definition
 
-### 3.1 设计目标
+### 3.1 Design Goals
 
-调度接口的目标不是简单提供几个 `sched_*` 函数壳子，而是要让应用通过这些接口看到真实的调度行为变化。
+The goal of scheduling interfaces is not simply to provide a few `sched_*` function shells, but to let applications see real scheduling behavior changes through these interfaces.
 
-换句话说，至少要做到下面几件事：
+In other words, at least the following must be achieved:
 
-- 改策略时，线程的调度类别真的发生变化
-- 改优先级时，线程在 Zephyr ready queue 中的竞争关系真的发生变化
-- 查询接口读到的信息，和线程实际运行状态保持一致
-- `SCHED_FIFO` 与 `SCHED_RR` 在同优先级下表现出不同的调度语义
+- When policy changes, the thread's scheduling class actually changes
+- When priority changes, the thread's competitive relationship in Zephyr's ready queue actually changes
+- Information read by query interfaces remains consistent with the thread's actual running state
+- `SCHED_FIFO` and `SCHED_RR` exhibit different scheduling semantics at the same priority
 
-如果只做“接口返回成功”，但内核侧并没有相应的状态和行为变化，那这个兼容层对上层应用没有实际意义。
+If only "interface returns success" is done, but there are no corresponding state and behavior changes on the kernel side, then this compatibility layer has no practical meaning for upper-layer applications.
 
-### 3.2 三层结构
+### 3.2 Three-Layer Structure
 
-调度接口可以按三层理解：
+Scheduling interfaces can be understood in three layers:
 
-#### 第一层：应用可见接口
+#### Layer 1: Application-Visible Interfaces
 
-这一层是 Linux/POSIX 程序员直接使用的入口，主要包括：
+This layer is the entry point directly used by Linux/POSIX programmers, mainly including:
 
 - `sched_getparam()`
 - `sched_setparam()`
@@ -71,352 +71,319 @@
 - `sched_rr_get_interval()`
 - `pthread_attr_*sched*()`
 - `pthread_*schedparam()`
-- `nice()` / `setpriority()` 风格扩展接口
+- `nice()` / `setpriority()` style extension interfaces
 
-#### 第二层：兼容映射层
+#### Layer 2: Compatibility Mapping Layer
 
-这一层负责做语义转换，常见工作包括：
+This layer is responsible for semantic conversion, common tasks include:
 
-- 把 POSIX 策略值转换为 Zephyr 内部策略枚举
-- 把应用视角优先级转换为 Zephyr 内核优先级空间
-- 做参数合法性检查
-- 保证创建阶段和运行阶段的调度属性处理方式一致
+- Converting POSIX policy values to Zephyr internal policy enums
+- Converting application-view priorities to Zephyr kernel priority space
+- Performing parameter validity checks
+- Ensuring consistent handling of scheduling attributes during creation and runtime phases
 
-#### 第三层：内核执行层
+#### Layer 3: Kernel Execution Layer
 
-这一层最终落到 Zephyr 内核对象与调度路径，核心对象包括：
+This layer ultimately falls to Zephyr kernel objects and scheduling paths, core objects include:
 
 - `struct k_thread`
-- 线程基类中的优先级和策略元数据
-- ready queue
-- timeslice 逻辑
-- 调度比较函数和线程切换条件
+- Priority and policy metadata in thread base class
+- Ready queue
+- Timeslice logic
+- Scheduling comparison functions and thread switching conditions
 
-这三层必须串起来，接口语义才算闭环。
+These three layers must be connected for interface semantics to form a closed loop.
 
-## 4. 线程调度元数据
+## 4. Thread Scheduling Metadata
 
-为了让 Zephyr 线程承载 Linux/POSIX 风格的调度语义，线程对象里至少需要保留“策略”和“优先级”两个维度的信息。
+To make Zephyr threads carry Linux/POSIX-style scheduling semantics, thread objects need to retain at least two dimensions of information: "policy" and "priority."
 
-在当前文档体系中，策略字段以 `_thread_base.sched_policy` 为代表，它的意义不是替代 Zephyr 现有优先级，而是补上 Linux 兼容层真正关心的策略维度。
+In the current documentation system, the policy field is represented by `_thread_base.sched_policy`. Its significance is not to replace Zephyr's existing priority, but to supplement the policy dimension that the Linux compatibility layer truly cares about.
 
-内部策略枚举包括：
+Internal policy enums include:
 
 - `Z_THREAD_SCHED_OTHER`
 - `Z_THREAD_SCHED_FIFO`
 - `Z_THREAD_SCHED_RR`
 
-这几个值的作用主要体现在下面几处：
+The role of these values is mainly reflected in the following places:
 
-- 让 `sched_getscheduler()` 能返回线程的真实策略
-- 让 `sched_setscheduler()` 能把策略修改写回线程对象
-- 让时间片逻辑可以区分“需要轮转”和“不需要轮转”的线程
-- 让 `pthread` 调度接口和 `sched_*` 接口最终落到同一套线程元数据上
+- Allow `sched_getscheduler()` to return the thread's actual policy
+- Allow `sched_setscheduler()` to write policy modifications back to the thread object
+- Allow timeslice logic to distinguish between threads that "need rotation" and "don't need rotation"
+- Allow `pthread` scheduling interfaces and `sched_*` interfaces to ultimately fall to the same set of thread metadata
 
-如果没有这层元数据，很多接口只能做到“参数进来了”，做不到“线程状态真的变了”。
+Without this layer of metadata, many interfaces can only achieve "parameters came in" but cannot achieve "thread state actually changed."
 
-## 5. 策略映射与优先级映射
+## 5. Policy Mapping and Priority Mapping
 
-### 5.1 策略映射
+### 5.1 Policy Mapping
 
-策略映射关系相对直接：
+Policy mapping relationships are relatively straightforward:
 
-| Linux/POSIX 语义 | Zephyr 内部策略 |
-|---|---|
+| Linux/POSIX Semantics | Zephyr Internal Policy |
+|----------------------|------------------------|
 | `SCHED_OTHER` | `Z_THREAD_SCHED_OTHER` |
 | `SCHED_FIFO` | `Z_THREAD_SCHED_FIFO` |
 | `SCHED_RR` | `Z_THREAD_SCHED_RR` |
 
-这一层最大的价值不在“名字翻译”，而在于后续内核逻辑是否真正使用这些值。
+### 5.2 Priority Mapping
 
-### 5.2 优先级映射
+Priority mapping is more complex because Linux and Zephyr have different priority space definitions:
 
-优先级映射比策略映射更容易出问题，因为 Linux/POSIX 和 Zephyr 的优先级空间并不天然一致。
+- Linux real-time priorities: 1-99 (higher number = higher priority)
+- Zephyr priorities: typically 0-31 or wider range (lower number = higher priority)
 
-因此需要明确两个方向：
+The compatibility layer needs to provide bidirectional conversion functions:
 
-- **写入方向**：应用传入的 POSIX 优先级，转换后再写入 Zephyr 线程对象
-- **读取方向**：线程对象中的 Zephyr 优先级，转换后再返回给应用
+- `posix_to_zephyr_prio()`: Convert POSIX priority to Zephyr priority
+- `zephyr_to_posix_prio()`: Convert Zephyr priority to POSIX priority
 
-这里必须保证两个要求：
+Conversion principles:
 
-- 对应用来说，设置和读取优先级时语义自洽
-- 对内核来说，不破坏 Zephyr 原有的优先级比较规则
+- Ensure monotonicity: higher POSIX priority maps to higher Zephyr priority (lower number)
+- Ensure reversibility: conversion back and forth should yield the original value
+- Handle boundary cases: out-of-range values should be clamped or return errors
 
-如果只考虑写入、不考虑回读，应用会看到“设进去一个值，读出来却是另一套规则”；如果只考虑接口值映射、不考虑 ready queue 比较方式，又会导致应用看起来设置成功，但实际运行顺序不符合预期。
+### 5.3 Default Policy and Priority
 
-## 6. 内核桥接点
+When a thread is created without explicitly specifying scheduling attributes:
 
-调度接口最终能否落地，关键在几个桥接点是否设计得足够清晰。
+- Default policy: `SCHED_OTHER` (mapped to `Z_THREAD_SCHED_OTHER`)
+- Default priority: Zephyr's default cooperative priority or a predefined value
 
-### 6.1 `z_thread_priority_and_policy_set()`
+This ensures that threads created through standard `pthread_create()` without attributes have predictable behavior.
+
+## 6. Timeslice and Round-Robin Semantics
+
+### 6.1 SCHED_FIFO vs SCHED_RR
+
+The key difference between these two policies:
+
+- **SCHED_FIFO**: No timeslice. A thread runs until it blocks, yields, or is preempted by a higher-priority thread.
+- **SCHED_RR**: Has timeslice (typically 10 ticks). Threads at the same priority take turns running.
+
+### 6.2 Implementation Approach
+
+To implement this distinction in Zephyr:
+
+1. **Timeslice field**: Each thread needs a timeslice value
+   - FIFO threads: timeslice = 0 or K_TICKS_FOREVER
+   - RR threads: timeslice = configured value (e.g., 10 ticks)
+
+2. **Tick handler**: On each timer tick, check if the current thread:
+   - Is RR policy
+   - Has exhausted its timeslice
+   - If yes, move to end of same-priority queue and reset timeslice
+
+3. **Scheduler integration**: The ready queue must support moving threads within the same priority level
+
+### 6.3 sched_rr_get_interval()
+
+This interface returns the timeslice quantum for RR threads:
 
 ```c
-void z_thread_priority_and_policy_set(struct k_thread *thread,
-                                      int prio,
-                                      uint8_t policy);
+int sched_rr_get_interval(pid_t pid, struct timespec *tp);
 ```
 
-这是一个很关键的桥接入口。它的价值在于把“优先级修改”和“策略修改”合并成一个原子性的更新动作。
+Implementation:
+- Look up the thread by pid
+- If policy is SCHED_RR, return the configured timeslice
+- If policy is not SCHED_RR, return error or 0
 
-这样做有几个好处：
+## 7. Runtime Policy and Priority Changes
 
-- 避免先改优先级、后改策略时出现瞬时不一致状态
-- 避免 `sched_setparam()` 和 `sched_setscheduler()` 走出两套不同的更新路径
-- 方便把 `pthread_setschedparam()` 也统一收敛到同一个底层入口
+### 7.1 sched_setscheduler()
 
-从工程维护角度看，这种统一入口也更适合后续加锁、补统计、加断言或打调试日志。
-
-### 6.2 `z_get_thread_timeslice_ticks()`
+This interface changes both policy and priority:
 
 ```c
-int32_t z_get_thread_timeslice_ticks(struct k_thread *thread);
+int sched_setscheduler(pid_t pid, int policy, const struct sched_param *param);
 ```
 
-这个接口用于把线程当前的时间片信息向上导出。最直接的使用方就是 `sched_rr_get_interval()`。
+Implementation steps:
+1. Validate policy and priority values
+2. Convert POSIX policy to Zephyr internal policy
+3. Convert POSIX priority to Zephyr priority
+4. Update thread metadata
+5. If thread is ready, remove from ready queue and re-insert with new priority
+6. Trigger reschedule if necessary
 
-它的作用不是单纯“给个数字”，而是建立“应用可查询时间片”和“内核实际使用时间片”之间的对应关系。
+### 7.2 sched_setparam()
 
-如果没有这个桥接点，`sched_rr_get_interval()` 很容易沦为一个拍脑袋返回默认值的接口，失去验证价值。
-
-### 6.3 `thread_is_sliceable()`
+This interface changes only priority, keeping policy unchanged:
 
 ```c
-bool thread_is_sliceable(struct k_thread *thread);
+int sched_setparam(pid_t pid, const struct sched_param *param);
 ```
 
-这个判断决定线程是否参与时间片轮转。在只考虑 Zephyr 原生调度时，它可能更多是优先级和线程状态判断；但引入 Linux/POSIX 策略后，策略本身也成了判断条件。
+Implementation is similar to `sched_setscheduler()` but only updates priority.
 
-因此这里至少要体现出：
+### 7.3 Thread State Considerations
 
-- `SCHED_RR`：需要轮转
-- `SCHED_FIFO`：同优先级下不应被 RR 逻辑错误轮转
-- `SCHED_OTHER`：按普通线程的系统默认规则处理
+When changing scheduling attributes:
+- **Running thread**: Update metadata, may trigger immediate reschedule
+- **Ready thread**: Remove from ready queue, update, re-insert
+- **Blocked thread**: Update metadata, will take effect when unblocked
+- **Suspended thread**: Update metadata, will take effect when resumed
 
-这一点非常关键，因为很多“接口已经实现了”的假象，最后都是在这里被揭穿：
+## 8. pthread Scheduling Interfaces
 
-- `sched_setscheduler(..., SCHED_FIFO, ...)` 返回成功
-- 但线程仍然按 RR 方式轮转
+### 8.1 pthread_attr_setschedpolicy() and pthread_attr_setschedparam()
 
-一旦出现这种情况，就说明接口语义还没有真正传到内核行为层。
-
-## 7. 应用可见的 `sched_*` 接口
-
-### 7.1 `sched_get_priority_min()` / `sched_get_priority_max()`
-
-这两个接口看似简单，但它们实际上定义了整个优先级语义的边界。
-
-它们至少要回答两个问题：
-
-- 当前策略允许的优先级范围是什么
-- 兼容层是否对不同策略采用不同的优先级区间
-
-如果后续引入更多 Linux 风格策略，例如 `SCHED_DEADLINE` 或 `SCHED_NORMAL` 的扩展语义，这两个接口的行为边界也需要同步维护。
-
-### 7.2 `sched_getparam()`
-
-这个接口读取线程当前优先级，并且要把 Zephyr 内部优先级转换回应用可理解的 POSIX 值。
-
-它常见的问题有两个：
-
-- 读到的是底层原始优先级，应用无法理解
-- 回读值不是线程当前真实运行优先级，而是某个创建时残留值
-
-因此它必须从线程当前有效状态中取值，而不是从临时缓存里返回。
-
-### 7.3 `sched_setparam()`
-
-这个接口只修改优先级，不改变策略。它适合用于：
-
-- 在线程保留 `SCHED_FIFO` 或 `SCHED_RR` 的前提下微调实时优先级
-- 在同一调度策略里调整线程竞争次序
-
-它的实现重点是：
-
-- 不能悄悄改策略
-- 改完优先级后，要触发 ready queue 侧必要的更新
-
-### 7.4 `sched_getscheduler()`
-
-这个接口负责把线程的当前策略返回给应用。它应该读取线程真实持有的策略元数据，而不是返回编译时默认值或某个固定常量。
-
-对于调试非常有价值：很多时候先调用它，就能快速判断“策略根本没写进去”，还是“策略写进去了但执行路径没生效”。
-
-### 7.5 `sched_setscheduler()`
-
-这是 Linux 风格调度控制里最核心的一个接口。它同时涉及：
-
-- 策略切换
-- 优先级写入
-- ready queue 顺序调整
-- 可能的时间片行为变化
-
-在兼容层里，它通常是最能暴露设计质量的接口：如果这个接口实现得足够扎实，其他围绕调度的接口通常都能复用它的底层能力。
-
-### 7.6 `sched_rr_get_interval()`
-
-这个接口是验证 `SCHED_RR` 是否真正落地的关键抓手。
-
-如果 `SCHED_RR` 只是一个写在线程对象里的标签，而内核并没有实际时间片行为，那么这个接口最终很难返回可信的值。
-
-因此建议把它视为“行为验证接口”，而不是“装饰性查询接口”。
-
-## 8. `pthread` 调度接口
-
-除了 `sched_*` 之外，Linux/POSIX 程序还会大量通过 `pthread` 接口传递调度语义。这一层不能忽略。
-
-### 8.1 创建阶段接口
+These set scheduling attributes before thread creation:
 
 ```c
-int pthread_attr_getschedpolicy(const pthread_attr_t *attr, int *policy);
 int pthread_attr_setschedpolicy(pthread_attr_t *attr, int policy);
-int pthread_attr_getschedparam(const pthread_attr_t *attr, struct sched_param *param);
 int pthread_attr_setschedparam(pthread_attr_t *attr, const struct sched_param *param);
 ```
 
-这些接口的意义是在线程真正创建之前，把调度意图挂到属性对象上。
+These store values in the `pthread_attr_t` structure, which are then applied during `pthread_create()`.
 
-在工程上，最常见的问题不是接口本身写不出来，而是属性设置了、创建时却没传下去。因此这里一定要注意创建路径是否真正消费了这些属性。
+### 8.2 pthread_setschedparam() and pthread_getschedparam()
 
-### 8.2 运行阶段接口
+These change or query scheduling attributes of an existing thread:
 
 ```c
-int pthread_getschedparam(pthread_t thread, int *policy, struct sched_param *param);
 int pthread_setschedparam(pthread_t thread, int policy, const struct sched_param *param);
+int pthread_getschedparam(pthread_t thread, int *policy, struct sched_param *param);
 ```
 
-这两个接口的职责和 `sched_get*` / `sched_set*` 类似，但面向 `pthread_t` 线程对象。
+Implementation should call the same underlying functions as `sched_setscheduler()` and `sched_getscheduler()`.
 
-它们最重要的是保持和 `sched_*` 系列的一致性：
+### 8.3 Consistency Between pthread and sched Interfaces
 
-- 同一线程通过两套接口读出来的策略和优先级应该一致
-- 通过任意一套接口写进去的变化，都应该反映到真实运行状态上
+To avoid state inconsistency:
+- Both interface families should operate on the same thread metadata
+- Use common internal functions for policy/priority conversion and updates
+- Ensure query interfaces read from actual thread state, not cached values
 
-如果这两套接口各走各的实现路径，后面很容易出现状态分叉，调试成本会非常高。
+## 9. nice() and setpriority() Extensions
 
-## 9. zepLinux 调度扩展接口
+### 9.1 nice() Semantics
 
-在标准 POSIX 接口之外，项目还提供 zepLinux 工程扩展调度接口，例如：
+The `nice()` interface adjusts thread priority by a relative value:
 
 ```c
-/* 工程扩展调度接口示意 */
-zeplinux_sched_setscheduler(0, ZEP_SCHED_FIFO, &param);
-zeplinux_sched_setscheduler(0, ZEP_SCHED_RR, &param);
-zeplinux_sched_setscheduler(0, ZEP_SCHED_OTHER, &param);
-
-zeplinux_sched_setattr_dl(0, 1000000, 5000000, 10000000);
-
-zeplinux_nice(-5);
-zeplinux_setpriority(ZEP_PRIO_PROCESS, 0, 10);
-
-int policy = zeplinux_sched_getscheduler(0);
-int nice = zeplinux_getpriority(ZEP_PRIO_PROCESS, 0);
+int nice(int inc);
 ```
 
-这层接口的定位更像“贴近 Linux 使用习惯的工程封装”。它不应该绕开底层的 POSIX/Zephyr 映射机制，而应建立在那套基础设施之上。
+- Positive `inc`: Lower priority (be "nicer" to other threads)
+- Negative `inc`: Raise priority (requires privileges)
+- Typical range: -20 to +19
 
-换句话说：
+### 9.2 Implementation Approach
 
-- `zeplinux_sched_setscheduler()` 最终也应复用底层策略写入路径
-- `zeplinux_nice()` / `zeplinux_setpriority()` 最终也应回到统一的优先级映射机制
-- `zeplinux_sched_setattr_dl()` 如果要支持更复杂的调度策略，最好沿用现有桥接思路，而不是额外维护一套完全独立的线程状态
+For SCHED_OTHER threads:
+1. Get current nice value
+2. Add increment (clamping to valid range)
+3. Convert nice value to Zephyr priority
+4. Update thread priority
 
-## 10. 设备接口定义
+For real-time threads (SCHED_FIFO/RR):
+- May return error, or
+- Treat as no-op, or
+- Convert to equivalent priority adjustment
 
-调度之外，另一块必须单独说明的是设备控制路径。
+### 9.3 setpriority() and getpriority()
 
-### 10.1 为什么设备接口重要
+These interfaces set/get priority for processes, process groups, or users:
 
-很多 Linux 程序并不是单纯做计算，它们会：
+```c
+int setpriority(int which, id_t who, int prio);
+int getpriority(int which, id_t who);
+```
 
-- 打开设备节点
-- 发控制命令
-- 读写设备数据
-- 依赖阻塞/非阻塞语义组织事件循环
+In MCU environment without full process model:
+- `PRIO_PROCESS`: Operate on thread
+- `PRIO_PGRP` and `PRIO_USER`: May return error or operate on current thread
 
-如果兼容层只把线程和调度做好，而没有把设备访问路径打通，那么大部分“像 Linux 程序那样写的应用”仍然很难落地。
+## 10. Device Management Interfaces
 
-### 10.2 目标接口集合
+### 10.1 Design Goals
 
-当前设备兼容层至少要覆盖下面几个入口：
+Device management interfaces aim to provide Linux-style file descriptor operations on top of Zephyr's device model:
 
-- `open()`
-- `close()`
-- `read()`
-- `write()`
-- `ioctl()`
+- `open()`: Open device, return file descriptor
+- `close()`: Close file descriptor
+- `read()` / `write()`: Data transfer
+- `ioctl()`: Device-specific control operations
 
-它们构成的是一个“最小可用设备访问面”。
+### 10.2 File Descriptor Abstraction
 
-### 10.3 设备路径分层
+Zephyr doesn't have a native file descriptor table. The compatibility layer needs to implement:
 
-从工程实现上，可以把设备访问分成三层：
+1. **FD table**: Map integer FDs to device pointers or handles
+2. **FD allocation**: Assign unique FDs when devices are opened
+3. **FD lifecycle**: Track open/close state
 
-#### 第一层：应用调用层
+### 10.3 Device Mapping
 
-应用通过 `fd` 和 `ioctl` 表达自己的访问意图，这一层尽量保持 Linux 程序员熟悉的使用方式。
+Map device paths to Zephyr device instances:
 
-#### 第二层：兼容封装层
+- `/dev/gpio0` → `DEVICE_DT_GET(DT_NODELABEL(gpio0))`
+- `/dev/uart0` → `DEVICE_DT_GET(DT_NODELABEL(uart0))`
 
-这一层负责：
+Implementation approaches:
+- Static table mapping paths to device tree nodes
+- Dynamic registration mechanism
+- Hybrid approach
 
-- 做设备打开和 fd 管理
-- 做参数合法性检查
-- 做阻塞/非阻塞语义处理
-- 把控制命令分发到具体设备后端
+### 10.4 ioctl() Implementation
 
-#### 第三层：Zephyr 驱动层
+`ioctl()` is the most flexible and device-specific interface:
 
-真正执行动作的还是 Zephyr 设备模型和板级驱动。兼容层的职责不是取代驱动，而是把 Linux 风格调用重新组织后交给驱动去做。
+```c
+int ioctl(int fd, unsigned long request, ...);
+```
 
-### 10.4 `ioctl()` 的语义边界
+Implementation strategy:
+1. Look up device from FD
+2. Decode request code
+3. Dispatch to device-specific handler
+4. Common operations:
+   - GPIO: Set/clear pins, configure direction
+   - UART: Set baud rate, configure flow control
+   - SPI/I2C: Configure bus parameters
 
-`ioctl()` 需要单独强调，因为它最容易误解。
+The goal is not to replicate all Linux ioctl complexity, but to support the operations actually needed by the project.
 
-在这里，`ioctl()` 的目标不是无条件兼容 Linux 驱动 ABI，而是兼容“应用发控制命令”这类交互方式。更实际的做法通常是：
+### 10.5 Blocking and Non-Blocking Semantics
 
-- 向应用保留 `ioctl(fd, cmd, arg)` 的调用形式
-- 对项目实际需要的命令字和参数结构做明确约束
-- 在底层用 Zephyr 驱动接口实现等价控制行为
+The device compatibility layer must handle not just "can read/write" but also waiting semantics.
 
-这样既保留了上层程序移植的便利，也避免把 Linux 设备子系统的复杂细节原样搬进 MCU 环境。
+Key aspects typically include:
 
-### 10.5 阻塞与非阻塞语义
+- Non-blocking open
+- Non-blocking read/write
+- Return values and error codes when device is temporarily unavailable
+- Coordination between interrupt events and polling logic
 
-设备兼容层不能只实现“能读能写”，还要处理等待语义。
+For MCU scenarios, fully replicating all Linux I/O semantics is costly, so a more pragmatic approach is to first cover the patterns actually used in the project and clearly document uncovered semantics.
 
-重点通常包括：
+## 11. Principles for Interface Implementation
 
-- 非阻塞打开
-- 非阻塞读写
-- 设备暂不可用时的返回值与错误码
-- 中断事件与轮询逻辑的配合
+To make subsequent implementation and maintenance more stable, always follow these principles:
 
-对于 MCU 场景，完全照搬 Linux 的全部 I/O 语义成本很高，因此更务实的做法是先覆盖项目中真正使用到的模式，并把未覆盖语义明确写进文档。
+### 11.1 Query Interfaces Should Not Forge State
 
-## 11. 接口实现时的几个原则
+Query interfaces like `sched_getscheduler()` and `sched_getparam()` must read from the thread's current effective state, not from initialization values, cached values, or compile-time constants.
 
-为了让后续实现和维护更稳，建议始终遵循下面几个原则：
+### 11.2 Set Interfaces Must Drive Underlying State Changes
 
-### 11.1 查询接口不要伪造状态
+All `set*` interfaces should not just modify an upper-layer structure, but must drive actual changes in thread objects, ready queues, or device state.
 
-像 `sched_getscheduler()`、`sched_getparam()` 这类查询接口，必须从线程当前有效状态读取，而不是从初始化值、缓存值或编译时常量返回。
+### 11.3 Standard and Extension Interfaces Share Unified Underlying Paths
 
-### 11.2 设置接口必须推动底层状态变化
+POSIX `sched_*`, `pthread_*sched*`, and zepLinux extension interfaces should share the same underlying bridging logic. Otherwise, as interfaces multiply, state can easily become inconsistent.
 
-凡是 `set*` 接口，都不应只是修改一个上层结构体，而必须推动线程对象、ready queue 或设备状态发生真正变化。
+### 11.4 Clearly Define "Degree of Compatibility"
 
-### 11.3 标准接口与扩展接口走统一底层路径
+There's no need to implement semantics the project won't use just to pursue formal completeness, but the boundaries of what's supported, partially supported, and not yet supported must be clearly documented.
 
-POSIX 的 `sched_*`、`pthread_*sched*` 和 zepLinux 扩展接口最好共用同一套底层桥接逻辑。否则接口一多，状态很容易失配。
+## 12. Related Materials
 
-### 11.4 明确“兼容到什么程度”
-
-不需要为了追求形式完整去实现项目不会用到的语义，但必须把已经支持、部分支持和暂不支持的边界写清楚。
-
-## 12. 相关资料
-
-- 总览文档：`docs/zepLinux-interface-and-validation.md`
-- 开发与构建：`docs/zephyr-linux-build-and-dev.md`
-- 测试与 demo：`docs/test-demos/README.md`
-- 文档索引：`docs/zephyr-linux-interface-commits.md`
+- Overview document: `docs/zepLinux-interface-and-validation.md`
+- Development and build: `docs/zephyr-linux-build-and-dev.md`
+- Tests and demos: `docs/test-demos/README.md`
+- Documentation index: `docs/zephyr-linux-interface-commits.md`

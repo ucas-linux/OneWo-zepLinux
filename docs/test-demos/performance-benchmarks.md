@@ -1,10 +1,10 @@
-# 性能基准
+# Performance Benchmarks
 
-本文件说明性能测试资料如何映射到仓库目录，并给出后续建议的整理方式。
+This file explains how performance testing materials map to repository directories and provides recommended organization methods for future work.
 
-## 1. 对应目录
+## 1. Corresponding Directories
 
-建议把性能相关内容拆成两部分：
+It's recommended to split performance-related content into two parts:
 
 ```text
 tests/stress/
@@ -18,65 +18,65 @@ tests/demo/perf/
 └── device-latency-benchmark.md
 ```
 
-其中：
+Where:
 
-- `tests/stress/` 适合承载可自动运行的压力测试
-- `tests/demo/perf/` 适合记录性能测试方法、观察点和结果整理方式
+- `tests/stress/` - Suitable for carrying automatically runnable stress tests
+- `tests/demo/perf/` - Suitable for recording performance test methods, observation points, and result organization methods
 
-## 2. 已有基础
+## 2. Existing Foundation
 
-当前仓库已存在：
+The current repository already has:
 
 - `tests/stress/test_stress.c`
 
-它已经覆盖了一些很有价值的基础压力场景：
+It already covers some valuable basic stress scenarios:
 
-- 最大线程创建
-- 内存分配压力
-- 互斥锁竞争
-- 简单碎片化模式
+- Maximum thread creation
+- Memory allocation pressure
+- Mutex lock contention
+- Simple fragmentation patterns
 
-这意味着性能和压力测试并不是从零开始，可以先以这个文件为基础继续扩展。
+This means performance and stress testing is not starting from zero; we can continue expanding based on this file.
 
-## 3. 建议增加的性能专题
+## 3. Recommended Additional Performance Topics
 
-### 3.1 调度延迟基准
+### 3.1 Scheduling Latency Benchmark
 
-建议文件：`tests/demo/perf/sched-latency-benchmark.md`
+Recommended file: `tests/demo/perf/sched-latency-benchmark.md`
 
-建议记录：
+Recommended content:
 
-- 线程切换观察方法
-- 不同策略下的响应时间
-- 高负载场景下的延迟变化
+- Thread switching observation methods
+- Response times under different policies
+- Latency changes under high load scenarios
 
-### 3.2 RR 时间片抖动基准
+### 3.2 RR Timeslice Jitter Benchmark
 
-建议文件：`tests/demo/perf/rr-jitter-benchmark.md`
+Recommended file: `tests/demo/perf/rr-jitter-benchmark.md`
 
-建议记录：
+Recommended content:
 
-- 配置的时间片值
-- 实际观察到的轮转节奏
-- 抖动是否在可接受范围内
+- Configured timeslice values
+- Actually observed rotation rhythm
+- Whether jitter is within acceptable range
 
-### 3.3 设备控制路径延迟
+### 3.3 Device Control Path Latency
 
-建议文件：`tests/demo/perf/device-latency-benchmark.md`
+Recommended file: `tests/demo/perf/device-latency-benchmark.md`
 
-建议记录：
+Recommended content:
 
-- `ioctl` 或设备访问调用开销
-- 中断到用户态可见事件的延迟
-- 非阻塞重试模式下的平均等待时间
+- `ioctl` or device access call overhead
+- Latency from interrupt to user-space visible event
+- Average wait time in non-blocking retry mode
 
-## 4. 现有压力测试的建议定位
+## 4. Recommended Positioning for Existing Stress Tests
 
-文件：`tests/stress/test_stress.c`
+File: `tests/stress/test_stress.c`
 
-它更适合作为“资源与并发压力”验证入口，而不是完整的性能分析报告。因此建议：
+It's more suitable as a "resource and concurrency pressure" validation entry point rather than a complete performance analysis report. Therefore, it's recommended:
 
-- 自动化压力回归继续放在 `tests/stress/`
-- 人工分析和结果沉淀放在 `tests/demo/perf/`
+- Automated stress regression continues in `tests/stress/`
+- Manual analysis and result accumulation goes in `tests/demo/perf/`
 
-这样可以把“测”和“记”分开，结构更清晰。
+This way "testing" and "recording" are separated, making the structure clearer.

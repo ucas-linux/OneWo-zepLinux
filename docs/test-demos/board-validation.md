@@ -1,10 +1,10 @@
-# 板级验证
+# Board-Level Validation
 
-本文件用于说明板级联调 demo 应该如何落到仓库结构中，以及后续真实验证资料建议放在哪里。
+This file explains how board-level integration demos should map to repository structure and where future actual validation materials should be placed.
 
-## 1. 对应目录
+## 1. Corresponding Directories
 
-建议的板级验证目录如下：
+Recommended board-level validation directory:
 
 ```text
 tests/demo/board/
@@ -14,61 +14,61 @@ tests/demo/board/
 └── concurrent-device-validation.md
 ```
 
-这里仍然先以文档为主，因为板级验证往往依赖实际硬件、日志和接线信息，不一定一开始就适合写成纯自动化测试。
+This still primarily uses documentation, because board-level validation often depends on actual hardware, logs, and wiring information, and may not be suitable for pure automated testing from the start.
 
-## 2. 已有基础
+## 2. Existing Foundation
 
-从当前 README 可以确认两点：
+From the current README, two points can be confirmed:
 
-- 当前主验证平台之一是 `qemu_cortex_m3`
-- 仓库目标是把 Linux 风格接口落在 Zephyr/MCU 场景上
+- One of the current main validation platforms is `qemu_cortex_m3`
+- The repository goal is to implement Linux-style interfaces on Zephyr/MCU scenarios
 
-因此板级验证至少可以先分成两类：
+Therefore, board-level validation can at least be initially divided into two categories:
 
-- QEMU 验证
-- 真实板卡验证
+- QEMU validation
+- Real board validation
 
-## 3. 建议的验证材料组织方式
+## 3. Recommended Validation Material Organization
 
-### 3.1 QEMU 验证
+### 3.1 QEMU Validation
 
-建议文件：`tests/demo/board/qemu-cortex-m3-validation.md`
+Recommended file: `tests/demo/board/qemu-cortex-m3-validation.md`
 
-建议记录：
+Recommended content:
 
-- 运行的测试目录
-- 构建命令
-- QEMU 输出要点
-- 哪些接口已经在 QEMU 中跑通
-- 哪些问题无法仅靠 QEMU 观察
+- Test directories to run
+- Build commands
+- Key points of QEMU output
+- Which interfaces have already run successfully in QEMU
+- Which issues cannot be observed with QEMU alone
 
-### 3.2 Rocket Pi 验证
+### 3.2 Rocket Pi Validation
 
-建议文件：`tests/demo/board/rocket-pi-validation.md`
+Recommended file: `tests/demo/board/rocket-pi-validation.md`
 
-建议记录：
+Recommended content:
 
-- 板卡型号
-- 烧录方式
-- 串口波特率
-- 使用的外设
-- 运行步骤
-- 预期现象与异常现象
+- Board model
+- Flashing method
+- Serial port baud rate
+- Peripherals used
+- Execution steps
+- Expected phenomena and abnormal phenomena
 
-### 3.3 并发设备访问验证
+### 3.3 Concurrent Device Access Validation
 
-建议文件：`tests/demo/board/concurrent-device-validation.md`
+Recommended file: `tests/demo/board/concurrent-device-validation.md`
 
-建议记录：
+Recommended content:
 
-- 多线程调度策略组合
-- 设备访问组合场景
-- 是否出现优先级反转、饥饿或事件丢失
+- Multi-thread scheduling policy combinations
+- Device access combination scenarios
+- Whether priority inversion, starvation, or event loss occurs
 
-## 4. 与其他测试目录的关系
+## 4. Relationship with Other Test Directories
 
-- `tests/unit/` 更偏接口级正确性
-- `tests/integration/` 更偏跨模块联动
-- `tests/demo/board/` 更偏真实联调过程与可观察现象
+- `tests/unit/` - More focused on interface-level correctness
+- `tests/integration/` - More focused on cross-module coordination
+- `tests/demo/board/` - More focused on actual integration process and observable phenomena
 
-三者不是互相替代，而是不同层次的验证。
+The three are not mutually exclusive but represent different levels of validation.

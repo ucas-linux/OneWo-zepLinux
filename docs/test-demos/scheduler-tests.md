@@ -1,10 +1,10 @@
-# 调度接口测试
+# Scheduler Interface Tests
 
-本文件说明调度相关 demo 和测试如何落到仓库中的真实目录，并给出建议的样例组织方式。
+This file explains how scheduling-related demos and tests map to actual directories in the repository and provides recommended example organization.
 
-## 1. 对应目录
+## 1. Corresponding Directories
 
-当前建议的调度相关路径如下：
+Currently recommended scheduling-related paths:
 
 ```text
 tests/unit/
@@ -27,128 +27,128 @@ tests/demo/scheduler/
     └── prj.conf
 ```
 
-说明：
+Explanation:
 
-- `tests/unit/test_thread.c` 已存在，适合承载 `pthread` 基础行为验证
-- `tests/unit/test_sched.c` 已补入，负责 LMZ 调度接口的基本单元验证
-- `tests/demo/scheduler/` 先用于承载 demo 说明，后续可以逐步补充真正的样例程序
+- `tests/unit/test_thread.c` already exists, suitable for carrying `pthread` basic behavior verification
+- `tests/unit/test_sched.c` has been added, responsible for basic unit verification of LMZ scheduling interfaces
+- `tests/demo/scheduler/` initially used to carry demo descriptions, can gradually add actual example programs later
 
-## 2. 已有基础样例
+## 2. Existing Base Examples
 
 ### `tests/examples/hello_lmz/`
 
-这个例子虽然不是专门的调度 demo，但已经可以作为调度验证的起点，因为它具备：
+Although this example is not specifically a scheduling demo, it can serve as a starting point for scheduling verification because it includes:
 
-- `lmz_init()` 初始化路径
-- `pthread_create()` 创建线程
-- `pthread_join()` 等待线程结束
-- `pthread_mutex_*()` 的基本同步行为
+- `lmz_init()` initialization path
+- `pthread_create()` thread creation
+- `pthread_join()` waiting for thread completion
+- Basic synchronization behavior of `pthread_mutex_*()`
 
-在没有独立调度 demo 代码之前，可以先用它验证：
+Before having independent scheduling demo code, it can be used to verify:
 
-- 线程能否正常创建与回收
-- 多线程输出是否符合基本预期
-- 互斥锁路径是否正常工作
+- Whether threads can be created and reclaimed normally
+- Whether multi-thread output meets basic expectations
+- Whether mutex lock paths work normally
 
-## 3. 建议新增的调度 demo
+## 3. Recommended New Scheduling Demos
 
-### 3.1 RR 与 FIFO 区分 demo
+### 3.1 RR vs FIFO Distinction Demo
 
-建议目录：`tests/demo/scheduler/`
+Recommended directory: `tests/demo/scheduler/`
 
-建议文件：
+Recommended files:
 
-- 当前目录：`tests/demo/scheduler/rr_vs_fifo/`
-- 当前入口：`tests/demo/scheduler/rr_vs_fifo/main.c`
+- Current directory: `tests/demo/scheduler/rr_vs_fifo/`
+- Current entry: `tests/demo/scheduler/rr_vs_fifo/main.c`
 
-建议内容：
+Recommended content:
 
-- 创建两个相同优先级线程
-- 一个设置为 `SCHED_FIFO`
-- 一个设置为 `SCHED_RR`
-- 通过循环打印、计数器或时间戳观察轮转行为
+- Create two threads with the same priority
+- Set one to `SCHED_FIFO`
+- Set one to `SCHED_RR`
+- Observe rotation behavior through loop printing, counters, or timestamps
 
-希望验证的问题：
+Questions to verify:
 
-- `SCHED_RR` 是否真的受时间片驱动
-- `SCHED_FIFO` 是否不会在同优先级下被误轮转
+- Does `SCHED_RR` truly driven by timeslice?
+- Does `SCHED_FIFO` avoid being mistakenly rotated at the same priority?
 
-### 3.2 优先级映射 demo
+### 3.2 Priority Mapping Demo
 
-建议目录：`tests/demo/scheduler/`
+Recommended directory: `tests/demo/scheduler/`
 
-建议文件：
+Recommended files:
 
-- 当前目录：`tests/demo/scheduler/priority_mapping/`
-- 当前入口：`tests/demo/scheduler/priority_mapping/main.c`
+- Current directory: `tests/demo/scheduler/priority_mapping/`
+- Current entry: `tests/demo/scheduler/priority_mapping/main.c`
 
-建议内容：
+Recommended content:
 
-- 调用 `sched_setparam()` 或 `pthread_setschedparam()` 设置优先级
-- 用 `sched_getparam()` 或 `pthread_getschedparam()` 回读
-- 再通过线程运行顺序观察设置是否真正生效
+- Call `sched_setparam()` or `pthread_setschedparam()` to set priority
+- Read back with `sched_getparam()` or `pthread_getschedparam()`
+- Observe through thread execution order whether settings actually take effect
 
-### 3.3 RR 时间片导出 demo
+### 3.3 RR Timeslice Export Demo
 
-建议目录：`tests/demo/scheduler/`
+Recommended directory: `tests/demo/scheduler/`
 
-建议文件：
+Recommended files:
 
-- 当前目录：`tests/demo/scheduler/rr_interval/`
-- 当前入口：`tests/demo/scheduler/rr_interval/main.c`
+- Current directory: `tests/demo/scheduler/rr_interval/`
+- Current entry: `tests/demo/scheduler/rr_interval/main.c`
 
-建议内容：
+Recommended content:
 
-- 调用 `sched_rr_get_interval()`
-- 读取当前时间片设置
-- 结合线程切换节奏验证返回值是否可信
+- Call `sched_rr_get_interval()`
+- Read current timeslice setting
+- Verify whether return value is reliable combined with thread switching rhythm
 
-## 4. 当前可以直接运行的相关测试
+## 4. Currently Directly Runnable Related Tests
 
-### 4.1 线程单元测试
+### 4.1 Thread Unit Tests
 
-文件：`tests/unit/test_thread.c`
+File: `tests/unit/test_thread.c`
 
-适合验证：
+Suitable for verifying:
 
-- 线程创建
-- 线程退出与回收
-- 基本互斥行为
+- Thread creation
+- Thread exit and reclamation
+- Basic mutex behavior
 
-### 4.2 Hello LMZ 样例
+### 4.2 Hello LMZ Example
 
-目录：`tests/examples/hello_lmz/`
+Directory: `tests/examples/hello_lmz/`
 
-适合验证：
+Suitable for verifying:
 
-- LMZ 初始化路径
-- 多线程运行
-- 基本同步原语
+- LMZ initialization path
+- Multi-thread execution
+- Basic synchronization primitives
 
-## 5. 后续建议
+## 5. Future Recommendations
 
-如果下一步要把调度 demo 做成真正可跑的测试，最合适的落点是：
+If the next step is to make scheduling demos into truly runnable tests, the most suitable landing points are:
 
-- 接口级检查已经落到 `tests/unit/test_sched.c`
-- 行为可视化 demo 放到 `tests/demo/scheduler/`
+- Interface-level checks already landed in `tests/unit/test_sched.c`
+- Behavior visualization demos placed in `tests/demo/scheduler/`
 
-这样既方便自动化回归，也方便人工观察调度现象。
+This way it's convenient for both automated regression and manual observation of scheduling phenomena.
 
-## 6. 已落地的首批 demo
+## 6. First Batch of Landed Demos
 
-当前仓库中已经加入第一批可编译的调度 demo：
+The first batch of compilable scheduling demos has been added to the current repository:
 
 - `tests/demo/scheduler/rr_vs_fifo/`
 - `tests/demo/scheduler/priority_mapping/`
 - `tests/demo/scheduler/rr_interval/`
 
-它们的定位是：
+Their positioning is:
 
-- 先打通构建路径
-- 先确认 LMZ 调度接口在当前代码状态下是否可调用
-- 在 `CONFIG_SCHED_LINUX` 打开后，作为进一步行为验证的起点
+- First establish build paths
+- First confirm whether LMZ scheduling interfaces are callable in the current code state
+- After `CONFIG_SCHED_LINUX` is enabled, serve as starting points for further behavior verification
 
-### 构建示例
+### Build Example
 
 ```bash
 cd tests/demo/scheduler/rr_vs_fifo
@@ -156,4 +156,4 @@ west build -b qemu_cortex_m3 .
 west build -t run
 ```
 
-其他两个 demo 的构建方式相同，只需要把目录切换到对应 demo 根目录。
+The other two demos are built the same way, just switch the directory to the corresponding demo root directory.
