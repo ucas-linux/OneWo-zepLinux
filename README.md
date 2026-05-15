@@ -19,13 +19,13 @@ OneWo-zepLinux/
 │   ├── zepLinux-interface-and-validation.md
 │   ├── zephyr-linux-build-and-dev.md
 │   └── test-demos/                 # Board validation, device demos, benchmarks, scheduler tests
-├── docs/zh/                        # 中文文档
-│   ├── README.zh.md                # 项目中文说明
+├── docs/zh/                        # Chinese Version
+│   ├── README.zh.md                # Project overview (Chinese Version)
 │   ├── zephyr-linux-api-reference.zh.md
 │   ├── zephyr-linux-build-and-dev.zh.md
 │   ├── zephyr-linux-interface-definition.zh.md
 │   ├── zepLinux-interface-and-validation.zh.md
-│   └── test-demos/                 # 测试演示文档
+│   └── test-demos/                 # 
 ├── modules/
 │   └── hal/
 │       ├── ansilic/                # ANSILIC RISC-V 32 HAL
