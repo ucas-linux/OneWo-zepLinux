@@ -1,0 +1,51 @@
+STM32CubeF3
+###########
+
+Origin:
+   ST Microelectronics
+   http://www.st.com/en/embedded-software/stm32cubef3.html
+
+Status:
+   version v1.11.5
+
+Purpose:
+   ST Microelectronics official MCU package for STM32F3 series.
+
+Description:
+   This package is an extract of official STM32CubeF3 package written by ST Microelectronics.
+   It is composed of STM32Cube hardware abstraction layer (HAL) and low layer (LL) plus a set
+   of CMSIS headers files, one for each SoC in STM32F3 series.
+
+Dependencies:
+    None.
+
+URL:
+   https://github.com/STMicroelectronics/STM32CubeF3
+
+Commit:
+   8d9115fc51dd84a08864add769e1cba6f95b8857
+
+Maintained-by:
+   External
+
+License:
+   BSD-3-Clause
+
+License Link:
+   https://opensource.org/licenses/BSD-3-Clause
+
+Patch List:
+
+   *Changes from official delivery:
+    -dos2unix applied
+    -trailing white spaces removed
+
+   *Provision to enable hal & ll asserts added
+    -Added stm32cube/stm32f3xx/drivers/include/stm32_assert.h
+    -Removed unused stm32cube/stm32f3xx/drivers/include/stm32_assert_template.h
+
+   *Fix to remove PAGESIZE definition which conflicts with POSIX
+    Impacted files:
+     drivers/include/Legacy/stm32_hal_legacy.h
+
+   See release_note.html from STM32Cube

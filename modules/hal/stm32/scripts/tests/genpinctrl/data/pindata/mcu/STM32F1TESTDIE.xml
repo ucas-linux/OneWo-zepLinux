@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<Mcu Family="STM32F1" RefName="STM32F1TESTDIE" xmlns="http://dummy.com">
+    <IP Name="GPIO" Version="STM32F1TESTIP"/>
+    <!-- Valid pin -->
+    <Pin Name="PA0" Type="I/O">
+        <!-- Valid signal -->
+        <Signal Name="UART1_TX"/>
+        <!-- Valid signal -->
+        <Signal Name="UART1_RX"/>
+        <!-- Valid signal (analog) -->
+        <Signal Name="ADC1_IN0"/>
+        <!-- Valid signal (not in GPIO IP file) -->
+        <Signal Name="I2C2_SCL"/>
+    </Pin>
+</Mcu>

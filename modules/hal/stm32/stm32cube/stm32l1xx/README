@@ -1,0 +1,58 @@
+STM32CubeL1
+###########
+
+Origin:
+   ST Microelectronics
+   http://www.st.com/en/embedded-software/stm32cubel1.html
+
+Status:
+   version v1.10.5
+
+Purpose:
+   ST Microelectronics official MCU package for STM32L1 series.
+
+Description:
+   This package is an extract of official STM32CubeL1 package written by ST Microelectronics.
+   It is composed of STM32Cube hardware abstraction layer (HAL) and low layer (LL) plus a set
+   of CMSIS headers files, one for each SoC in STM32L1 series.
+
+Dependencies:
+    None.
+
+URL:
+   https://github.com/STMicroelectronics/STM32CubeL1
+
+Commit:
+   988c26cf46340f2e00bbc8089385a2b1c14f42b9
+
+Maintained-by:
+   External
+
+License:
+   BSD-3-Clause
+
+License Link:
+   https://opensource.org/licenses/BSD-3-Clause
+
+Patch List:
+
+   *Disable i2c HAL
+     Due to conflict with zephyr i2c.h (I2C_SPEED_STANDARD and I2C_SPEED_FAST
+     redefinition), deactivate STM32Cube I2C HAL. This raises no issue since
+     LL API is currently used for stm32 I2C driver.
+    Impacted files:
+     drivers/include/stm32l1xx_hal_conf.h
+    ST Bug tracker ID: NA. Not a stm32cube issue
+
+   *stm32l151xb: add missing SPI_CR2_FRF definitions
+
+    The higher density parts correctly included the SPI_CR2_FRF definitions,
+    but these were missing for the low/medium density parts.  Without these
+    definitions, the zephyr SPI driver cannot be used on these parts.
+    ST Bug tracker ID: 73643
+
+   *Fix to remove PAGESIZE definition which conflicts with POSIX
+    Impacted files:
+     drivers/include/Legacy/stm32_hal_legacy.h
+
+   See release_note.html from STM32Cube

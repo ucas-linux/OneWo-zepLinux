@@ -1,0 +1,50 @@
+STM32CubeL5
+###########
+
+Origin:
+   ST Microelectronics
+   http://www.st.com/en/embedded-software/stm32cubel5.html
+
+Status:
+   version v1.6.0
+
+Purpose:
+   ST Microelectronics official MCU package for STM32L5 series.
+
+Description:
+   This package is an extract of official STM32CubeL package written by ST Microelectronics.
+   It is composed of STM32Cube hardware abstraction layer (HAL) and low layer (LL) plus a set
+   of CMSIS headers files, one for each SoC in STM32L5 series.
+
+Dependencies:
+    None.
+
+URL:
+   https://github.com/STMicroelectronics/STM32CubeL5
+
+Commit:
+   3605c12628bbc2cd98e3ee902adf4f7a89e164e4
+
+Maintained-by:
+   External
+
+License:
+   BSD-3-Clause
+
+License Link:
+   https://opensource.org/licenses/BSD-3-Clause
+
+Patch List:
+   *Changes from official delivery:
+    -dos2unix applied
+    -trailing white spaces removed
+
+   *Provision to enable hal & ll asserts added
+    -Added stm32cube/stm32l5xx/drivers/include/stm32_assert.h
+    -Removed unused stm32cube/stm32l5xx/drivers/include/stm32_assert_template.h
+
+   *Fix to remove PAGESIZE definition which conflicts with POSIX
+    Impacted files:
+     drivers/include/Legacy/stm32_hal_legacy.h
+
+   See release_note.html from STM32Cube

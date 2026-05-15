@@ -1,0 +1,75 @@
+STM32CubeWB0
+############
+
+Origin:
+   STMicroelectronics
+   http://www.st.com/en/embedded-software/stm32cubewb0.html
+
+Status:
+   version v1.0.0
+
+Purpose:
+   STMicroelectronics official MCU package for STM32WB0 series.
+
+Description:
+   This package is an extract of official STM32CubeWB0 package written by STMicroelectronics.
+   It is composed of STM32Cube hardware abstraction layer (HAL) and low layer (LL) plus a set
+   of CMSIS headers files, one for each SoC in the STM32WB0 series.
+
+Dependencies:
+    None.
+
+URL:
+   https://github.com/STMicroelectronics/STM32CubeWB0
+
+Commit:
+   61d80e00cdb6136a58a33b95d2137e3bc9baa28e
+
+Maintained-by:
+   External
+
+License:
+   BSD-3-Clause
+
+License Link:
+   https://opensource.org/licenses/BSD-3-Clause
+
+Patch List:
+
+   *Changes from official delivery:
+    -dos2unix applied
+    -trailing white spaces removed
+
+   *Added provision to enable HAL & LL asserts
+    -Added stm32cube/stm32wb0x/drivers/include/stm32_assert.h
+    -Removed unused stm32cube/stm32wb0x/drivers/include/stm32_assert_template.h
+
+   *Added patches to enable compilation with Zephyr
+    -exclude stm32cube/stm32wb0x/soc/system_stm32wb0.c from build
+      . Missing definitions moved to 'zephyr/soc/st/stm32/stm32wb0xx/soc.c'
+        . SystemCoreClock (CMSIS global variable)
+        . RAM_VR          (STM32WB0x virtual registers)
+    -in stm32cube/stm32wb0x/soc/system_stm32wb0x.h
+      . Remove declaration of non-existent '__vector_table' symbol
+      . Remove declaration of associated datatypes 'intfunc' / 'intvec_elem'
+    -in stm32cube/stm32wb0x/drivers/include/Legacy/stm32_hal_legacy.h
+      . Remove PAGESIZE definition which conflicts with POSIX
+    -in stm32cube/stm32wb0x/drivers/include/stm32wb0x_hal_conf.h
+      . Change USE_RADIO_PROPRIETARY_DRIVER from 1U to 0U
+         . Required for BLE stack compatibility
+    -in stm32cube/stm32wb0x/drivers/src/stm32wb0x_hal_radio.c
+      . Remove definition of __blue_RAM variable
+        . Moved to 'zephyr/soc/st/stm32/stm32wb0xx/soc.c'
+
+   *Added patches to fix HAL radio timer for WB07/WB05
+    -Exclude "_start_timer" from HAL_RADIO_TIMER_Init since the virtual
+     radio timer is implemented on Zephyr side.
+    -Update system time frequently.
+    -Handle machine time wrapping to make sure that the system ticks are
+     coherent.
+    -Impacted file:
+     stm32wb0x_hal_radio_timer.c
+    -See also:
+     https://github.com/zephyrproject-rtos/hal_stm32/pull/337
+
+   See Release_Notes.html from STM32Cube for more details.

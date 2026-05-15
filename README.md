@@ -12,39 +12,32 @@ Implementing a Linux-compatible interface layer on Zephyr RTOS, enabling Linux a
 
 ```
 OneWo-zepLinux/
-├── README.md                # Project overview, architecture description, interface and test index
-├── docs/                    # Design documents, migration guides, interface definitions and demo descriptions
-│   ├── design-principles.md
-│   ├── linux-sched-kernel-integration.md
-│   ├── migration-guide.md
+├── README.md                       # Project overview (this file)
+├── docs/                           # English documentation
+│   ├── zephyr-linux-api-reference.md
+│   ├── zephyr-linux-interface-definition.md
 │   ├── zepLinux-interface-and-validation.md
-│   └── test-demos/          # Board validation, device demos, performance benchmarks, scheduler test docs
-├── scripts/                 # Development helper scripts
-│   ├── setup.sh
-│   ├── build.sh
-│   ├── test.sh
-│   ├── check.sh
-│   └── format.sh
-├── tests/                   # Examples, unit, integration, stress and demo tests
-│   ├── examples/hello_lmz/  # Minimal example program
-│   ├── unit/                # `thread` / `sched` / `memory` unit tests
-│   ├── integration/         # Process integration tests
-│   ├── stress/              # Stress tests
-│   └── demo/                # Scheduler, device, board, performance demos
-├── posix-zephyr-spec/       # Linux/POSIX compatibility layer specifications and interface breakdown docs
-│   ├── specs/               # Module-specific interface specs (threads, processes, scheduling, signals, etc.)
-│   ├── tracking/            # Roadmap, status tracking, Zephyr modification records
-│   ├── examples/            # Specification examples
-│   └── scripts/             # Specification helper scripts
-└── zephyr/                  # Built-in Zephyr source tree and kernel implementation
-    ├── kernel/              # Kernel scheduling and thread core logic
-    ├── include/             # Public header files
-    ├── lib/                 # Base libraries
-    ├── subsys/              # Various subsystems
-    ├── tests/               # Zephyr built-in tests
-    ├── samples/             # Zephyr samples
-    └── boards/              # Board support packages
-
+│   ├── zephyr-linux-build-and-dev.md
+│   └── test-demos/                 # Board validation, device demos, benchmarks, scheduler tests
+├── docs/zh/                        # 中文文档
+│   ├── README.zh.md                # 项目中文说明
+│   ├── zephyr-linux-api-reference.zh.md
+│   ├── zephyr-linux-build-and-dev.zh.md
+│   ├── zephyr-linux-interface-definition.zh.md
+│   ├── zepLinux-interface-and-validation.zh.md
+│   └── test-demos/                 # 测试演示文档
+├── modules/
+│   └── hal/
+│       ├── ansilic/                # ANSILIC RISC-V 32 HAL
+│       └── stm32/                  # STM32 HAL (placeholder)
+└── zephyr/                         # Built-in Zephyr source tree and kernel implementation
+    ├── kernel/                     # Kernel scheduling and thread core logic
+    ├── include/                    # Public header files
+    ├── lib/                        # Base libraries
+    ├── subsys/                     # Various subsystems
+    ├── tests/                      # Zephyr built-in tests
+    ├── samples/                    # Zephyr samples
+    └── boards/others/              # Custom board support (rocket_pi, stm32f401_mini)
 ```
 
 ## Scheduler Architecture
@@ -95,14 +88,9 @@ Enabled through the `CONFIG_SCHED_LINUX` Kconfig option, serving as Zephyr's 4th
 ## Build and Test
 
 ```bash
-
-
 # Build kernel integration test (real thread scheduling)
 west build -b rocket_pi/stm32f401xe zephyr/tests/kernel/sched/schedule_api
-
 ```
-
-
 
 ## Interface Category Overview
 
@@ -118,27 +106,24 @@ west build -b rocket_pi/stm32f401xe zephyr/tests/kernel/sched/schedule_api
 | Time & Process Control | 4 | clock_gettime, wait, waitpid, posix_spawn |
 | I/O Multiplexing | 3 | select, poll, epoll |
 
-## Documentation Index
+## Documentation
 
-### Design and Usage Documentation Overview
+### English
 
-- Project Overview: `README.md`
-- Chinese Formal Interface Definition Document: `docs/zephyr-linux-api-reference-zh.md`
-- Interface Design and Kernel Mapping Description: `docs/zephyr-linux-interface-definition.md`
+- Interface API Reference: `docs/zephyr-linux-api-reference.md`
+- Interface Design and Kernel Mapping: `docs/zephyr-linux-interface-definition.md`
 - Interface and Validation Overview: `docs/zepLinux-interface-and-validation.md`
-- Build and Development Methods: `docs/zephyr-linux-build-and-dev.md`
+- Build and Development Guide: `docs/zephyr-linux-build-and-dev.md`
 - Test Demo Documentation: `docs/test-demos/`
 
+### Chinese Version
 
-
-## Interface Documentation and Validation Materials
-
-- Interface and Validation Overview: `docs/zepLinux-interface-and-validation.md`
-- Interface Definition Document: `docs/zephyr-linux-interface-definition.md`
-- Build and Development Methods: `docs/zephyr-linux-build-and-dev.md`
-- Test Demo Documentation: `docs/test-demos/`
-- Actual Demo Directory: `tests/demo/`
-- Documentation Index Page: `docs/zephyr-linux-interface-commits.md`
+- README: `docs/zh/README.zh.md`
+- Interface API Reference:  `docs/zh/zephyr-linux-api-reference.zh.md`
+- Interface Design and Kernel Mapping: `docs/zh/zephyr-linux-interface-definition.zh.md`
+- Interface and Validation Overview: `docs/zh/zepLinux-interface-and-validation.zh.md`
+- Build and Development Guide: `docs/zh/zephyr-linux-build-and-dev.zh.md`
+- Test Demo Documentation: `docs/zh/test-demos/`
 
 ## License
 

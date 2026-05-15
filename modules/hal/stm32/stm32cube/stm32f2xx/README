@@ -1,0 +1,66 @@
+STM32CubeF2
+###########
+
+Origin:
+   ST Microelectronics
+   http://www.st.com/en/embedded-software/stm32cubef2.html
+
+Status:
+   version v1.9.5
+
+Purpose:
+   ST Microelectronics official MCU package for STM32F2 series.
+
+Description:
+   This package is an extract of official STM32CubeF2 package written by ST Microelectronics.
+   It is composed of STM32Cube hardware abstraction layer (HAL) and low layer (LL) plus a set
+   of CMSIS headers files, one for each SoC in STM32F2 series.
+
+Dependencies:
+    None.
+
+URL:
+   https://github.com/STMicroelectronics/STM32CubeF2
+
+Commit:
+   63e02baff3d0c0c96cd9009aa2f9dc198a08e947
+
+Maintained-by:
+   External
+
+License:
+   BSD-3-Clause
+
+License Link:
+   https://opensource.org/licenses/BSD-3-Clause
+
+Patch List:
+
+   *Changes from official delivery:
+    -dos2unix applied
+    -trailing white spaces removed
+
+   *Disable i2c HAL
+     Due to conflict with zephyr i2c.h (I2C_SPEED_STANDARD and I2C_SPEED_FAST
+     redefinition), deactivate STM32Cube I2C HAL. This raises no issue since
+     LL API is currently used for stm32 I2C driver.
+    Impacted files:
+     drivers/include/stm32f2xx_hal_conf.h
+    ST Bug tracker ID: NA. Not a stm32cube issue
+
+   *Provision to enable hal & ll asserts added
+    -Added stm32cube/stm32f2xx/drivers/include/stm32_assert.h
+    -Removed unused stm32cube/stm32f2xx/drivers/include/stm32_assert_template.h
+
+   *Fix to remove PAGESIZE definition which conflicts with POSIX
+    Impacted files:
+     drivers/include/Legacy/stm32_hal_legacy.h
+
+   *stm32cube: stm32f2: excluded phy init and config
+     exclude phy init and config as that is already
+     done in zephyr before and we don't want it to
+     be overwritten
+     Impacted files:
+      drivers/src/stm32f2xx_hal_eth.c
+
+   See release_note.html from STM32Cube

@@ -1,0 +1,82 @@
+STM32CubeH5
+###########
+
+Origin:
+   ST Microelectronics
+   http://www.st.com/en/embedded-software/stm32cubeh5.html
+
+Status:
+   version v1.5.0
+
+Purpose:
+   ST Microelectronics official MCU package for STM32H5 series.
+
+Description:
+   This package is an extract of official STM32CubeH5 package written by ST Microelectronics.
+   It is composed of STM32Cube hardware abstraction layer (HAL) and low layer (LL) plus a set
+   of CMSIS headers files, one for each SoC in STM32H5 series.
+
+Dependencies:
+    None.
+
+URL:
+   https://github.com/STMicroelectronics/STM32CubeH5
+
+Commit:
+   047a3e84bc870a5609d2f9f38c74caf20d033403
+Maintained-by:
+   External
+
+License:
+   BSD-3-Clause
+
+License Link:
+   https://opensource.org/licenses/BSD-3-Clause
+
+Patch List:
+
+   *Changes from official delivery:
+    -dos2unix applied
+    -trailing white spaces removed
+
+   *Provision to enable hal & ll asserts added
+    -Added stm32cube/stm32h5xx/drivers/include/stm32_assert.h
+    -Removed unused stm32cube/stm32h5xx/drivers/include/stm32_assert_template.h
+    -in stm32cube/stm32h5xx/drivers/src/
+      . renamed stm32h5xx_hal_msp_template. c to stm32h5xx_hal_msp.c
+      . renamed stm32h5xx_hal_timebase_rtc_alarm_template. c to stm32h5xx_hal_timebase_rtc_alarm.c
+      . renamed stm32h5xx_hal_timebase_rtc_wakeup_template. c to stm32h5xx_hal_timebase_rtc_wakeup.c
+      . renamed stm32h5xx_hal_timebase_tim_template. c to stm32h5xx_hal_timebase_tim.c
+
+   *fix to the V2 HAL API to get PTP to work
+     impacted file : stm32h5xx_hal_eth.c
+     In the HAL_ETH_ReadData function where it checks for the last descriptor,
+     we added a checked if the TSA bit was set in DESC1
+     If the TSA bit is set then have a peak at the context descriptor which should be the one
+     after the last descriptor
+     If the CTXT bit is set in the context descriptor then extract the timestamps
+     ST internal bug : 161504
+
+   *Fix to remove PAGESIZE definition which conflicts with POSIX
+    Impacted files:
+     drivers/include/Legacy/stm32_hal_legacy.h
+
+   *Fix SDIO initialization failure when skipping card identification sequence
+     Fixes an issue in the STM32H5 SDIO driver where HAL_SDIO_Init() fails if
+     the card identification sequence is skipped.
+     Impacted files:
+      stm32cube/stm32h5xx/drivers/src/stm32h5xx_hal_sdio.c
+
+   *Fix SDIO polling mode data transfer issues
+     Fixes two related issues in the STM32H5 SDIO driver: incorrect block count calculation 
+     that caused the card to hang, and improper buffer size handling that led to misaligned FIFO writes. 
+     Together, these changes ensure correct and stable data transfer in polling mode.
+     Impacted file: 
+      stm32cube/stm32h5xx/drivers/src/stm32h5xx_hal_sdio.c   
+
+   *Fix warning about extraneous parentheses when compiling with clang
+     ST internal bug: 218364
+     Impacted files:
+      stm32cube/stm32h5xx/drivers/src/stm32h5xx_hal_rcc_ex.c
+
+   See release_note.html from STM32Cube
