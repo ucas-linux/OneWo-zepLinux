@@ -1,6 +1,6 @@
 # OneWo zepLinux — A New Zephyr OS with Linux API for MCU, Developed by OneWo-rtLinux Team
 
-Implementing a Linux-compatible interface layer on Zephyr RTOS, enabling Linux applications to run on ARM Cortex-M3 microcontrollers with minimal modifications.
+Implementing a Linux-compatible interface layer on Zephyr RTOS, enabling Linux applications to run on ARM Cortex-M3 and ANSILIC RISC-V 32 microcontrollers with minimal modifications.
 
 ## Core Highlights
 
