@@ -1,18 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0
+
 config SOC_SERIES_AS32X601
-	bool "Ansilic AS32X601 series"
+	bool
 	select SOC_FAMILY_ANSILIC
 
 config SOC_SERIES
 	default "as32x601" if SOC_SERIES_AS32X601
 
-config SOC_AS32X601
-	bool "Ansilic AS32X601 SoC"
-	depends on SOC_SERIES_AS32X601
-	select RISCV_ISA_EXT_M
-	select RISCV_ISA_EXT_A
-	select RISCV_ISA_EXT_C
-	select INCLUDE_RESET_VECTOR
-	select PLIC
-
-config SOC
-	default "as32x601" if SOC_AS32X601
+rsource "Kconfig.soc.*"

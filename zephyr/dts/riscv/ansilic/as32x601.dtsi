@@ -1,0 +1,206 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "ansilic,as32x601";
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "riscv";
+			reg = <0>;
+			riscv,isa = "rv32imafdc_zicsr_zifencei";
+			clock-frequency = <180000000>;
+			status = "okay";
+
+			hlic0: interrupt-controller {
+				compatible = "riscv,cpu-intc";
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-controller;
+			};
+		};
+	};
+
+		soc {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "ansilic,as32x601", "simple-bus";
+			ranges;
+
+		clint: clint@30010000 {
+			compatible = "sifive,clint0";
+			interrupts-extended = <&hlic0 3 &hlic0 7>;
+			reg = <0x30010000 0x10000>;
+			status = "okay";
+		};
+
+		mtimer: timer@3001bff8 {
+			compatible = "riscv,machine-timer";
+			interrupts-extended = <&hlic0 7>;
+			reg = <0x3001bff8 0x8 0x30014000 0x8>;
+			reg-names = "mtime", "mtimecmp";
+			status = "okay";
+		};
+
+		plic: interrupt-controller@30020000 {
+			compatible = "ansilic,as32x601-plic";
+			#address-cells = <0>;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+			interrupts-extended = <&hlic0 11>;
+			reg = <0x30020000 0x400000>;
+			riscv,max-priority = <7>;
+			riscv,ndev = <64>;
+		};
+
+		uart0: serial@50006000 {
+			compatible = "ansilic,as32x601-uart";
+			reg = <0x50006000 0x1000>;
+			clock-frequency = <180000000>;
+			current-speed = <115200>;
+			pinctrl-0 = <&uart0_default>;
+			pinctrl-names = "default";
+			interrupt-parent = <&plic>;
+			interrupts = <30 1>;
+			status = "disabled";
+		};
+
+			gpioa: gpio@41004000 {
+				compatible = "ansilic,as32x601-gpio";
+				reg = <0x41004000 0x1000>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				ngpios = <16>;
+			interrupt-parent = <&plic>;
+				interrupts = <10 1>;
+				status = "disabled";
+		};
+
+		gpiob: gpio@41005000 {
+			compatible = "ansilic,as32x601-gpio";
+			reg = <0x41005000 0x1000>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <16>;
+			interrupt-parent = <&plic>;
+			interrupts = <11 1>;
+			status = "disabled";
+		};
+
+			gpioe: gpio@42004000 {
+				compatible = "ansilic,as32x601-gpio";
+				reg = <0x42004000 0x1000>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				ngpios = <16>;
+				interrupt-parent = <&plic>;
+				interrupts = <21 1>;
+				status = "disabled";
+		};
+
+		gpiof: gpio@42005000 {
+			compatible = "ansilic,as32x601-gpio";
+			reg = <0x42005000 0x1000>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <16>;
+			interrupt-parent = <&plic>;
+			interrupts = <22 1>;
+			status = "disabled";
+		};
+
+			gpiog: gpio@42006000 {
+				compatible = "ansilic,as32x601-gpio";
+				reg = <0x42006000 0x1000>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				ngpios = <16>;
+			interrupt-parent = <&plic>;
+			interrupts = <23 1>;
+			status = "disabled";
+		};
+
+		uart5: serial@51006000 {
+			compatible = "ansilic,as32x601-uart";
+			reg = <0x51006000 0x1000>;
+			clock-frequency = <180000000>;
+			current-speed = <115200>;
+			pinctrl-0 = <&uart5_default>;
+			pinctrl-names = "default";
+			interrupt-parent = <&plic>;
+			interrupts = <43 1>;
+			status = "disabled";
+		};
+
+		spi4: spi@51001000 {
+			compatible = "ansilic,as32x601-spi";
+			reg = <0x51001000 0x1000>;
+			clock-frequency = <180000000>;
+			pinctrl-0 = <&spi4_default>;
+			pinctrl-names = "default";
+			interrupt-parent = <&plic>;
+			interrupts = <38 1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c0: i2c@50004000 {
+			compatible = "ansilic,as32x601-i2c";
+			reg = <0x50004000 0x1000>;
+			clock-frequency = <100000>;
+			pinctrl-0 = <&i2c0_default>;
+			pinctrl-names = "default";
+			interrupt-parent = <&plic>;
+			interrupts = <28 1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@50005000 {
+			compatible = "ansilic,as32x601-i2c";
+			reg = <0x50005000 0x1000>;
+			clock-frequency = <100000>;
+			pinctrl-0 = <&i2c1_default>;
+			pinctrl-names = "default";
+			interrupt-parent = <&plic>;
+			interrupts = <29 1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		tim0: timer@41000000 {
+			compatible = "ansilic,as32x601-timer";
+			reg = <0x41000000 0x1000>;
+			interrupt-parent = <&plic>;
+			interrupts = <5 1>;
+			status = "disabled";
+		};
+	};
+
+	sram0: memory@20000000 {
+		device_type = "memory";
+		reg = <0x20000000 0x00080000>;
+	};
+
+	flash0: flash@1000000 {
+		compatible = "soc-nv-flash";
+		reg = <0x01000000 0x00200000>;
+		write-block-size = <4>;
+		erase-block-size = <4096>;
+	};
+
+	pinctrl: pinctrl {
+		compatible = "ansilic,as32x601-pinctrl";
+		status = "okay";
+	};
+};

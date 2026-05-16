@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_AS32X601
+	bool "AS32X601"
+	select SOC_SERIES_AS32X601

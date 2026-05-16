@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+
+if SOC_AS32X601
+
+rsource "Kconfig.defconfig.*"
+
+endif # SOC_AS32X601

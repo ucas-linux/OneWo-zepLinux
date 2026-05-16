@@ -208,3 +208,8 @@ source "drivers/gpio/Kconfig.xmc4xxx"
 # zephyr-keep-sorted-stop
 
 endif # GPIO
+
+config GPIO_AS32X601
+	bool "AS32X601 GPIO driver"
+	default y if DT_HAS_ANSILIC_AS32X601_GPIO_ENABLED
+	depends on GPIO
