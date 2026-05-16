@@ -245,4 +245,5 @@ rsource "Kconfig.xlnx"
 rsource "Kconfig.xmc4xxx"
 # zephyr-keep-sorted-stop
 
+rsource "Kconfig.as32x601"
 endif # SERIAL

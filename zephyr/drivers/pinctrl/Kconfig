@@ -91,4 +91,9 @@ source "drivers/pinctrl/Kconfig.sf32lb52x"
 
 rsource "renesas/Kconfig"
 
+config PINCTRL_AS32X601
+	bool "Ansilic AS32X601 pinctrl"
+	default y if SOC_AS32X601
+	depends on PINCTRL
+
 endif # PINCTRL

@@ -1,0 +1,8 @@
+# AS32X601 SPI driver
+
+config SPI_AS32X601
+	bool "AS32X601 SPI driver"
+	default y
+	depends on DT_HAS_ANSILIC_AS32X601_SPI_ENABLED
+	help
+	  Enable SPI driver for Ansilic AS32X601 SoC.

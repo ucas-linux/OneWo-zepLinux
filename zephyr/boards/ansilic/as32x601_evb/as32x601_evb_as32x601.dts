@@ -1,112 +1,132 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
 /dts-v1/;
 
-#include <mem.h>
+#include <ansilic/as32x601.dtsi>
+#include <zephyr/dt-bindings/gpio/gpio.h>
+#include "as32x601_evb-pinctrl.dtsi"
 
 / {
-	model = "Ansilic AS32X601 EVB";
+	model = "Ansilic AS32X601 Evaluation Board";
 	compatible = "ansilic,as32x601-evb";
 
-	#address-cells = <1>;
-	#size-cells = <1>;
-
 	chosen {
-		zephyr,console = &uart0;
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 		zephyr,code-partition = &flash0;
-	};
-
-	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		cpu0: cpu@0 {
-			clock-frequency = <1000000>;
-			compatible = "ansilic,as32x601", "riscv";
-			device_type = "cpu";
-			reg = <0>;
-			riscv,isa = "rv32imac_zicsr_zifencei";
-
-			hlic: interrupt-controller {
-				compatible = "riscv,cpu-intc";
-				#address-cells = <0>;
-				#interrupt-cells = <1>;
-				interrupt-controller;
-			};
-		};
-	};
-
-	soc {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "simple-bus";
-		ranges;
-
-		flash0: flash@20000000 {
-			compatible = "soc-nv-flash";
-			reg = <0x20000000 DT_SIZE_M(8)>;
-			write-block-size = <4>;
-			erase-block-size = <4096>;
-			status = "okay";
-		};
-
-		sram0: memory@80000000 {
-			compatible = "mmio-sram";
-			reg = <0x80000000 DT_SIZE_K(256)>;
-		};
-
-		clint: clint@2000000 {
-			compatible = "sifive,clint0";
-			interrupts-extended = <&hlic 3>, <&hlic 7>;
-			reg = <0x02000000 0x00010000>;
-			status = "okay";
-		};
-
-		mtimer: timer@200bff8 {
-			compatible = "riscv,machine-timer";
-			interrupts-extended = <&hlic 7>;
-			reg = <0x0200bff8 0x8 0x02004000 0x8>;
-			reg-names = "mtime", "mtimecmp";
-			status = "okay";
-		};
-
-		plic: interrupt-controller@c000000 {
-			compatible = "sifive,plic-1.0.0";
-			#address-cells = <0>;
-			#interrupt-cells = <2>;
-			interrupt-controller;
-			interrupts-extended = <&hlic 11>;
-			reg = <0x0c000000 0x00400000>;
-			riscv,max-priority = <7>;
-			riscv,ndev = <127>;
-			status = "okay";
-		};
-
-		uart0: uart@10013000 {
-			compatible = "ns16550";
-			reg = <0x10013000 0x1000>;
-			reg-shift = <0>;
-			clock-frequency = <1000000>;
-			current-speed = <115200>;
-			interrupt-parent = <&plic>;
-			interrupts = <10 1>;
-			status = "okay";
-		};
-
-		gpio0: gpio@10012000 {
-			compatible = "sifive,gpio0";
-			reg = <0x10012000 0x1000>;
-			gpio-controller;
-			#gpio-cells = <2>;
-			ngpios = <32>;
-			interrupt-parent = <&plic>;
-			interrupts = <11 1>;
-			status = "okay";
-		};
+		zephyr,console = &uart0;
+		zephyr,shell-uart = &uart0;
 	};
 
 	aliases {
-		led0 = &gpio0;
-		sw0 = &gpio0;
+		serial-0 = &uart0;
+		gpio-0 = &gpioa;
+		led0 = &user_led0;
+		sw0 = &button_pb3;
+		sw1 = &button_pb4;
+		sw2 = &button_pe10;
+		rs485-de = &rs485_de;
 	};
+
+	rs485_ctrl {
+		compatible = "gpio-leds";
+		rs485_de: rs485_de_0 {
+			gpios = <&gpiog 11 GPIO_ACTIVE_HIGH>;
+			label = "RS485 DE";
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		user_led0: led_0 {
+			gpios = <&gpiog 15 GPIO_ACTIVE_LOW>;
+			label = "User LED0";
+		};
+	};
+
+	buttons {
+		compatible = "gpio-keys";
+
+		button_pb3: button_pb3 {
+			gpios = <&gpiob 3 GPIO_ACTIVE_LOW>;
+			label = "Button PB3";
+			zephyr,code = <0>;
+		};
+
+		button_pb4: button_pb4 {
+			gpios = <&gpiob 4 GPIO_ACTIVE_LOW>;
+			label = "Button PB4";
+			zephyr,code = <1>;
+		};
+
+		button_pe10: button_pe10 {
+			gpios = <&gpioe 10 GPIO_ACTIVE_LOW>;
+			label = "Button PE10";
+			zephyr,code = <2>;
+		};
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&gpioa {
+	status = "okay";
+};
+
+&gpiob {
+	status = "okay";
+};
+
+&gpioe {
+	status = "okay";
+};
+
+&gpiog {
+	status = "okay";
+};
+
+&gpiof {
+	status = "okay";
+};
+
+&uart5 {
+	status = "okay";
+};
+
+&spi4 {
+	status = "okay";
+	cs-gpios = <&gpiog 4 GPIO_ACTIVE_LOW>;
+	adc128s: adc128s102@0 {
+		compatible = "ti,adc128s102";
+		reg = <0>;
+		spi-max-frequency = <11250000>;
+	};
+};
+
+&i2c0 {
+	status = "okay";
+	ina226: ina226@40 {
+		compatible = "ti,ina226";
+		reg = <0x40>;
+		rshunt-micro-ohms = <10000>;
+		current-lsb-microamps = <1000>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	eeprom: at24c02@50 {
+		compatible = "atmel,at24";
+		reg = <0x50>;
+		size = <256>;
+		pagesize = <8>;
+		address-width = <8>;
+		timeout = <5>;
+	};
+};
+
+&tim0 {
+	status = "okay";
 };
