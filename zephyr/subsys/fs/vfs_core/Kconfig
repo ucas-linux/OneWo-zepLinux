@@ -1,0 +1,36 @@
+# Copyright (c) 2024 OneWo-zepLinux Project
+# SPDX-License-Identifier: Apache-2.0
+
+config VFS_CORE
+	bool "VFS Core Layer"
+	help
+	  Enable the VFS (Virtual File System) core layer. This provides
+	  an inode-based abstraction layer for file systems, inspired by
+	  embox's VFS architecture.
+
+if VFS_CORE
+
+config VFS_MAX_DRIVERS
+	int "Maximum number of VFS drivers"
+	default 8
+	help
+	  Maximum number of VFS drivers that can be registered.
+
+config RAMFS
+	bool "RAMFS - In-Memory File System"
+	default y
+	help
+	  Enable RAMFS, a simple in-memory file system. This is useful
+	  for temporary storage and testing.
+
+if RAMFS
+
+config RAMFS_MAX_SIZE
+	int "Maximum RAMFS size in bytes"
+	default 1048576
+	help
+	  Maximum size of RAMFS in bytes. Default is 1MB.
+
+endif # RAMFS
+
+endif # VFS_CORE

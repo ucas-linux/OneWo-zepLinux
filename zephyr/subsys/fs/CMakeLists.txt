@@ -19,6 +19,8 @@ if(CONFIG_FILE_SYSTEM_LIB_LINK)
   add_subdirectory_ifdef(CONFIG_FILE_SYSTEM_EXT2 ext2)
   add_subdirectory_ifdef(CONFIG_FUSE_CLIENT fuse_client)
   add_subdirectory_ifdef(CONFIG_FILE_SYSTEM_VIRTIOFS virtiofs)
+  add_subdirectory_ifdef(CONFIG_VFS_CORE vfs_core)
+  add_subdirectory_ifdef(CONFIG_RAMFS ramfs)
 
   zephyr_library_link_libraries(FS)
 
