@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 config BOARD_AS32X601_EVB
-	bool "AS32X601 EVB"
-	depends on SOC_AS32X601
+	bool
+	select SOC_AS32X601

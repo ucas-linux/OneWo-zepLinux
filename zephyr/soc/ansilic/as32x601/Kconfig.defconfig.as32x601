@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: Apache-2.0
+
+if SOC_AS32X601
+
+config INCLUDE_RESET_VECTOR
+	default y
+
+config PLIC
+	default n
+
+config RISCV_HAS_PLIC
+	default y if AS32X601_PLIC
+
+config SYS_CLOCK_EXISTS
+	default y
+
+config SYS_CLOCK_HW_CYCLES_PER_SEC
+	default 180000000
+
+config VECTOR_TABLE_SIZE
+	default 64
+
+config NUM_IRQS
+	default 64
+
+config RISCV_SOC_INTERRUPT_INIT
+	default y
+
+config MAX_IRQ_PER_AGGREGATOR
+	default 64 if AS32X601_PLIC
+
+config 2ND_LVL_ISR_TBL_OFFSET
+	default 12 if AS32X601_PLIC
+
+config 2ND_LVL_INTR_00_OFFSET
+	default 11 if AS32X601_PLIC
+
+config GEN_IRQ_START_VECTOR
+	default 0
+
+config RISCV_SOC_HAS_GP_RELATIVE_ADDRESSING
+	default y
+
+config FPU
+	default y
+
+config FLOAT_HARD
+	default y if FPU
+
+config CPU_HAS_FPU
+	default y
+
+config CPU_HAS_FPU_DOUBLE_PRECISION
+	default y
+
+config RISCV_ISA_EXT_F
+	default y
+
+config RISCV_ISA_EXT_D
+	default y
+
+config RISCV_ISA_EXT_C
+	default y
+
+config SOC_PREP_HOOK
+	default y
+
+config SOC_EARLY_INIT_HOOK
+	default y
+
+config SOC_RESET_HOOK
+	default y
+
+config ARCH_HAS_CUSTOM_CPU_IDLE
+	default y
+
+endif # SOC_AS32X601

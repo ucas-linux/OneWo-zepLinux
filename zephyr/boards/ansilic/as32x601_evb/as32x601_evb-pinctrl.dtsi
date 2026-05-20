@@ -1,0 +1,94 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+#include <zephyr/dt-bindings/pinctrl/ansilic-as32x601-pinctrl.h>
+
+/ {
+	pinctrl {
+		uart0_default: uart0_default {
+			group1 {
+				pinmux = <AS32X601_PINMUX(AS32X601_PORT_D, 8, AS32X601_GPIO_AF_USART0)>;
+				drive-push-pull;
+				output-enable;
+				slew-rate = <AS32X601_GPIO_DRIVE_9MA>;
+			};
+			group2 {
+				pinmux = <AS32X601_PINMUX(AS32X601_PORT_D, 9, AS32X601_GPIO_AF_USART0)>;
+				input-enable;
+				slew-rate = <AS32X601_GPIO_DRIVE_9MA>;
+			};
+		};
+
+		button_pb3_default: button_pb3_default {
+			group1 {
+				pinmux = <AS32X601_PINMUX(AS32X601_PORT_B, 3, AS32X601_GPIO_AF_PIN_X)>;
+				input-enable;
+				slew-rate = <AS32X601_GPIO_DRIVE_4_5MA>;
+			};
+		};
+
+		button_pb4_default: button_pb4_default {
+			group1 {
+				pinmux = <AS32X601_PINMUX(AS32X601_PORT_B, 4, AS32X601_GPIO_AF_PIN_X)>;
+				input-enable;
+				slew-rate = <AS32X601_GPIO_DRIVE_4_5MA>;
+			};
+		};
+
+		button_pe10_default: button_pe10_default {
+			group1 {
+				pinmux = <AS32X601_PINMUX(AS32X601_PORT_E, 10, AS32X601_GPIO_AF_PIN_X)>;
+				input-enable;
+				slew-rate = <AS32X601_GPIO_DRIVE_4_5MA>;
+			};
+		};
+
+		uart5_default: uart5_default {
+			group1 {
+				pinmux = <AS32X601_PINMUX(AS32X601_PORT_G, 12, AS32X601_GPIO_AF_USART5)>;
+				drive-push-pull;
+				output-enable;
+				slew-rate = <AS32X601_GPIO_DRIVE_4_5MA>;
+			};
+			group2 {
+				pinmux = <AS32X601_PINMUX(AS32X601_PORT_G, 13, AS32X601_GPIO_AF_USART5)>;
+				input-enable;
+				slew-rate = <AS32X601_GPIO_DRIVE_4_5MA>;
+			};
+		};
+
+		spi4_default: spi4_default {
+			group1 {
+				pinmux = <AS32X601_PINMUX(AS32X601_PORT_G, 5, AS32X601_GPIO_AF_SPI4)>,
+				         <AS32X601_PINMUX(AS32X601_PORT_G, 6, AS32X601_GPIO_AF_SPI4)>;
+				drive-push-pull;
+				output-enable;
+				slew-rate = <AS32X601_GPIO_DRIVE_9MA>;
+			};
+			group2 {
+				pinmux = <AS32X601_PINMUX(AS32X601_PORT_G, 7, AS32X601_GPIO_AF_SPI4)>;
+				input-enable;
+				slew-rate = <AS32X601_GPIO_DRIVE_9MA>;
+			};
+		};
+
+		i2c0_default: i2c0_default {
+			group1 {
+				pinmux = <AS32X601_PINMUX(AS32X601_PORT_E, 7, AS32X601_GPIO_AF_IIC0_M1)>,
+				         <AS32X601_PINMUX(AS32X601_PORT_G, 1, AS32X601_GPIO_AF_IIC0_M1)>;
+				drive-open-drain;
+				output-enable;
+				slew-rate = <AS32X601_GPIO_DRIVE_4_5MA>;
+			};
+		};
+
+		i2c1_default: i2c1_default {
+			group1 {
+				pinmux = <AS32X601_PINMUX(AS32X601_PORT_F, 15, AS32X601_GPIO_AF_IIC1)>,
+				         <AS32X601_PINMUX(AS32X601_PORT_F, 13, AS32X601_GPIO_AF_IIC1)>;
+				drive-open-drain;
+				output-enable;
+				slew-rate = <AS32X601_GPIO_DRIVE_4_5MA>;
+			};
+		};
+	};
+};

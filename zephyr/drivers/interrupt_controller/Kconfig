@@ -126,3 +126,5 @@ source "drivers/interrupt_controller/Kconfig.wch_pfic"
 source "drivers/interrupt_controller/Kconfig.wch_exti"
 
 endmenu
+
+source "drivers/interrupt_controller/Kconfig.as32x601_plic"

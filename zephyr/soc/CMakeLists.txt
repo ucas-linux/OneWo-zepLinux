@@ -10,7 +10,6 @@ endif()
 unset(_SOC_IS_IN_TREE)
 
 add_subdirectory(common)
-add_subdirectory(ansilic)
 
 # Below is inclusion of HWMv2 SoC CMake lists.
 string(TOUPPER SOC_FAMILY_${SOC_FAMILY}_DIR family_setting_dir)
