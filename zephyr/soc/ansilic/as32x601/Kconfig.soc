@@ -1,6 +1,6 @@
 config SOC_SERIES_AS32X601
 	bool "Ansilic AS32X601 series"
-	select SOC_FAMILY_ANSILIC
+	depends on SOC_FAMILY_ANSILIC
 
 config SOC_SERIES
 	default "as32x601" if SOC_SERIES_AS32X601
