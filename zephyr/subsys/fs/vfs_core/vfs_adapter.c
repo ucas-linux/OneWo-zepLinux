@@ -5,11 +5,15 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/fs/fs.h>
+#include <zephyr/fs/fs_sys.h>
+#include <zephyr/posix/sys/stat.h>
 #include <errno.h>
 #include <string.h>
 #include "vfs_adapter.h"
 #include "vfs_inode.h"
 #include "vfs_superblock.h"
+#include "../ramfs/ramfs.h"
+#include "../fs_impl.h"
 
 #define LOG_LEVEL CONFIG_FS_LOG_LEVEL
 #include <zephyr/logging/log.h>
@@ -113,13 +117,9 @@ static int vfs_adapter_lookup_path(struct vfs_superblock *sb, const char *path,
 	}
 
 	/* Set return values */
-	if (token == NULL && last_token != NULL) {
-		/* Last component - return parent and name */
-		if (parent) {
-			*parent = current;
-		} else {
-			vfs_inode_unref(current);
-		}
+	if (parent != NULL && last_token != NULL) {
+		/* Caller wants parent + name (for create/mkdir/unlink) */
+		*parent = current;
 		if (name && last_token) {
 			*name = k_malloc(strlen(last_token) + 1);
 			if (*name) {
@@ -130,11 +130,12 @@ static int vfs_adapter_lookup_path(struct vfs_superblock *sb, const char *path,
 			/* Try to lookup the final component */
 			ret = sb->driver->ops->lookup(current, last_token, inode);
 			if (ret < 0 && ret != -ENOENT) {
-				if (parent) {
-					vfs_inode_unref(current);
-				}
+				vfs_inode_unref(current);
 			}
 		}
+	} else if (parent == NULL && inode != NULL) {
+		/* Caller wants the resolved inode directly */
+		*inode = current;
 	} else {
 		*inode = current;
 		if (parent) {
@@ -194,7 +195,7 @@ static int vfs_adapter_mount(struct fs_mount_t *mountp)
 
 	ctx->sb = sb;
 	ctx->driver = driver;
-	mountp->data = ctx;
+	mountp->fs_data = ctx;
 
 	LOG_INF("VFS adapter mounted successfully");
 	return 0;
@@ -207,11 +208,11 @@ static int vfs_adapter_unmount(struct fs_mount_t *mountp)
 
 	LOG_INF("VFS adapter unmount");
 
-	if (mountp == NULL || mountp->data == NULL) {
+	if (mountp == NULL || mountp->fs_data == NULL) {
 		return -EINVAL;
 	}
 
-	ctx = (struct vfs_adapter_ctx *)mountp->data;
+	ctx = (struct vfs_adapter_ctx *)mountp->fs_data;
 
 	/* Call driver unmount */
 	ret = ctx->driver->ops->unmount(ctx->sb);
@@ -219,7 +220,7 @@ static int vfs_adapter_unmount(struct fs_mount_t *mountp)
 	/* Free resources */
 	vfs_sb_free(ctx->sb);
 	k_free(ctx);
-	mountp->data = NULL;
+	mountp->fs_data = NULL;
 
 	return ret;
 }
@@ -231,14 +232,17 @@ static int vfs_adapter_unlink(struct fs_mount_t *mountp, const char *name)
 	char *filename = NULL;
 	int ret;
 
-	if (mountp == NULL || mountp->data == NULL || name == NULL) {
+	if (mountp == NULL || mountp->fs_data == NULL || name == NULL) {
 		return -EINVAL;
 	}
 
-	ctx = (struct vfs_adapter_ctx *)mountp->data;
+	ctx = (struct vfs_adapter_ctx *)mountp->fs_data;
+
+	/* Strip mount point prefix from path */
+	const char *rel_path = fs_impl_strip_prefix(name, mountp);
 
 	/* Lookup parent directory */
-	ret = vfs_adapter_lookup_path(ctx->sb, name, &parent, NULL, &filename);
+	ret = vfs_adapter_lookup_path(ctx->sb, rel_path, &parent, NULL, &filename);
 	if (ret < 0 && ret != -ENOENT) {
 		return ret;
 	}
@@ -274,14 +278,17 @@ static int vfs_adapter_mkdir(struct fs_mount_t *mountp, const char *name)
 	char *dirname = NULL;
 	int ret;
 
-	if (mountp == NULL || mountp->data == NULL || name == NULL) {
+	if (mountp == NULL || mountp->fs_data == NULL || name == NULL) {
 		return -EINVAL;
 	}
 
-	ctx = (struct vfs_adapter_ctx *)mountp->data;
+	ctx = (struct vfs_adapter_ctx *)mountp->fs_data;
+
+	/* Strip mount point prefix from path */
+	const char *rel_path = fs_impl_strip_prefix(name, mountp);
 
 	/* Lookup parent directory */
-	ret = vfs_adapter_lookup_path(ctx->sb, name, &parent, NULL, &dirname);
+	ret = vfs_adapter_lookup_path(ctx->sb, rel_path, &parent, NULL, &dirname);
 	if (ret < 0 && ret != -ENOENT) {
 		return ret;
 	}
@@ -313,14 +320,17 @@ static int vfs_adapter_opendir(struct fs_dir_t *dirp, const char *fs_path)
 	struct vfs_inode *inode = NULL;
 	int ret;
 
-	if (dirp == NULL || dirp->mp == NULL || dirp->mp->data == NULL) {
+	if (dirp == NULL || dirp->mp == NULL || dirp->mp->fs_data == NULL) {
 		return -EINVAL;
 	}
 
-	ctx = (struct vfs_adapter_ctx *)dirp->mp->data;
+	ctx = (struct vfs_adapter_ctx *)dirp->mp->fs_data;
+
+	/* Strip mount point prefix from path */
+	const char *rel_path = fs_impl_strip_prefix(fs_path, dirp->mp);
 
 	/* Lookup directory inode */
-	ret = vfs_adapter_lookup_path(ctx->sb, fs_path, NULL, &inode, NULL);
+	ret = vfs_adapter_lookup_path(ctx->sb, rel_path, NULL, &inode, NULL);
 	if (ret < 0) {
 		return ret;
 	}
@@ -338,11 +348,11 @@ static int vfs_adapter_readdir(struct fs_dir_t *dirp, struct fs_dirent *entry)
 {
 	struct vfs_adapter_ctx *ctx;
 
-	if (dirp == NULL || dirp->mp == NULL || dirp->mp->data == NULL || entry == NULL) {
+	if (dirp == NULL || dirp->mp == NULL || dirp->mp->fs_data == NULL || entry == NULL) {
 		return -EINVAL;
 	}
 
-	ctx = (struct vfs_adapter_ctx *)dirp->mp->data;
+	ctx = (struct vfs_adapter_ctx *)dirp->mp->fs_data;
 
 	/* Call driver readdir */
 	return ctx->driver->ops->readdir(dirp, entry);
@@ -352,11 +362,11 @@ static int vfs_adapter_closedir(struct fs_dir_t *dirp)
 {
 	struct vfs_adapter_ctx *ctx;
 
-	if (dirp == NULL || dirp->mp == NULL || dirp->mp->data == NULL) {
+	if (dirp == NULL || dirp->mp == NULL || dirp->mp->fs_data == NULL) {
 		return -EINVAL;
 	}
 
-	ctx = (struct vfs_adapter_ctx *)dirp->mp->data;
+	ctx = (struct vfs_adapter_ctx *)dirp->mp->fs_data;
 
 	/* Call driver closedir */
 	return ctx->driver->ops->closedir(dirp);
@@ -370,14 +380,17 @@ static int vfs_adapter_open(struct fs_file_t *filp, const char *fs_path, fs_mode
 	int ret;
 	bool create = (flags & FS_O_CREATE) != 0;
 
-	if (filp == NULL || filp->mp == NULL || filp->mp->data == NULL) {
+	if (filp == NULL || filp->mp == NULL || filp->mp->fs_data == NULL) {
 		return -EINVAL;
 	}
 
-	ctx = (struct vfs_adapter_ctx *)filp->mp->data;
+	ctx = (struct vfs_adapter_ctx *)filp->mp->fs_data;
+
+	/* Strip mount point prefix from path */
+	const char *rel_path = fs_impl_strip_prefix(fs_path, filp->mp);
 
 	/* Lookup file inode */
-	ret = vfs_adapter_lookup_path(ctx->sb, fs_path, &parent, &inode, &filename);
+	ret = vfs_adapter_lookup_path(ctx->sb, rel_path, &parent, &inode, &filename);
 
 	if (ret == -ENOENT && create && parent != NULL && filename != NULL) {
 		/* Create new file */
@@ -387,6 +400,11 @@ static int vfs_adapter_open(struct fs_file_t *filp, const char *fs_path, fs_mode
 		}
 	} else if (ret < 0) {
 		goto cleanup;
+	} else if (inode != NULL && (flags & FS_O_TRUNC)) {
+		/* Truncate existing file when FS_O_TRUNC is set */
+		if (ctx->driver->ops->truncate) {
+			ctx->driver->ops->truncate(inode, 0);
+		}
 	}
 
 	/* Call driver open */
@@ -409,11 +427,11 @@ static int vfs_adapter_close(struct fs_file_t *filp)
 {
 	struct vfs_adapter_ctx *ctx;
 
-	if (filp == NULL || filp->mp == NULL || filp->mp->data == NULL) {
+	if (filp == NULL || filp->mp == NULL || filp->mp->fs_data == NULL) {
 		return -EINVAL;
 	}
 
-	ctx = (struct vfs_adapter_ctx *)filp->mp->data;
+	ctx = (struct vfs_adapter_ctx *)filp->mp->fs_data;
 
 	/* Call driver close */
 	return ctx->driver->ops->close(filp);
@@ -423,11 +441,11 @@ static ssize_t vfs_adapter_read(struct fs_file_t *filp, void *dest, size_t nbyte
 {
 	struct vfs_adapter_ctx *ctx;
 
-	if (filp == NULL || filp->mp == NULL || filp->mp->data == NULL) {
+	if (filp == NULL || filp->mp == NULL || filp->mp->fs_data == NULL) {
 		return -EINVAL;
 	}
 
-	ctx = (struct vfs_adapter_ctx *)filp->mp->data;
+	ctx = (struct vfs_adapter_ctx *)filp->mp->fs_data;
 
 	/* Call driver read */
 	return ctx->driver->ops->read(filp, dest, nbytes);
@@ -437,11 +455,11 @@ static ssize_t vfs_adapter_write(struct fs_file_t *filp, const void *src, size_t
 {
 	struct vfs_adapter_ctx *ctx;
 
-	if (filp == NULL || filp->mp == NULL || filp->mp->data == NULL) {
+	if (filp == NULL || filp->mp == NULL || filp->mp->fs_data == NULL) {
 		return -EINVAL;
 	}
 
-	ctx = (struct vfs_adapter_ctx *)filp->mp->data;
+	ctx = (struct vfs_adapter_ctx *)filp->mp->fs_data;
 
 	/* Call driver write */
 	return ctx->driver->ops->write(filp, src, nbytes);
@@ -451,11 +469,11 @@ static int vfs_adapter_lseek(struct fs_file_t *filp, off_t off, int whence)
 {
 	struct vfs_adapter_ctx *ctx;
 
-	if (filp == NULL || filp->mp == NULL || filp->mp->data == NULL) {
+	if (filp == NULL || filp->mp == NULL || filp->mp->fs_data == NULL) {
 		return -EINVAL;
 	}
 
-	ctx = (struct vfs_adapter_ctx *)filp->mp->data;
+	ctx = (struct vfs_adapter_ctx *)filp->mp->fs_data;
 
 	/* Call driver lseek */
 	return ctx->driver->ops->lseek(filp, off, whence);
@@ -463,8 +481,14 @@ static int vfs_adapter_lseek(struct fs_file_t *filp, off_t off, int whence)
 
 static off_t vfs_adapter_tell(struct fs_file_t *filp)
 {
-	/* Use lseek with SEEK_CUR and offset 0 */
-	return vfs_adapter_lseek(filp, 0, FS_SEEK_CUR);
+	struct ramfs_file_data *file_data;
+
+	if (filp == NULL || filp->filep == NULL) {
+		return -EINVAL;
+	}
+
+	file_data = (struct ramfs_file_data *)filp->filep;
+	return file_data->pos;
 }
 
 static int vfs_adapter_truncate(struct fs_file_t *filp, off_t length)
@@ -472,11 +496,11 @@ static int vfs_adapter_truncate(struct fs_file_t *filp, off_t length)
 	struct vfs_adapter_ctx *ctx;
 	struct ramfs_file_data *file_data;
 
-	if (filp == NULL || filp->mp == NULL || filp->mp->data == NULL || filp->filep == NULL) {
+	if (filp == NULL || filp->mp == NULL || filp->mp->fs_data == NULL || filp->filep == NULL) {
 		return -EINVAL;
 	}
 
-	ctx = (struct vfs_adapter_ctx *)filp->mp->data;
+	ctx = (struct vfs_adapter_ctx *)filp->mp->fs_data;
 	file_data = (struct ramfs_file_data *)filp->filep;
 
 	/* Call driver truncate */
@@ -487,11 +511,11 @@ static int vfs_adapter_sync(struct fs_file_t *filp)
 {
 	struct vfs_adapter_ctx *ctx;
 
-	if (filp == NULL || filp->mp == NULL || filp->mp->data == NULL) {
+	if (filp == NULL || filp->mp == NULL || filp->mp->fs_data == NULL) {
 		return -EINVAL;
 	}
 
-	ctx = (struct vfs_adapter_ctx *)filp->mp->data;
+	ctx = (struct vfs_adapter_ctx *)filp->mp->fs_data;
 
 	/* Call driver sync if available */
 	if (ctx->driver->ops->sync) {
@@ -507,14 +531,17 @@ static int vfs_adapter_stat(struct fs_mount_t *mountp, const char *path, struct 
 	struct vfs_inode *inode = NULL;
 	int ret;
 
-	if (mountp == NULL || mountp->data == NULL || path == NULL || entry == NULL) {
+	if (mountp == NULL || mountp->fs_data == NULL || path == NULL || entry == NULL) {
 		return -EINVAL;
 	}
 
-	ctx = (struct vfs_adapter_ctx *)mountp->data;
+	ctx = (struct vfs_adapter_ctx *)mountp->fs_data;
+
+	/* Strip mount point prefix from path */
+	const char *rel_path = fs_impl_strip_prefix(path, mountp);
 
 	/* Lookup inode */
-	ret = vfs_adapter_lookup_path(ctx->sb, path, NULL, &inode, NULL);
+	ret = vfs_adapter_lookup_path(ctx->sb, rel_path, NULL, &inode, NULL);
 	if (ret < 0) {
 		return ret;
 	}
@@ -531,11 +558,11 @@ static int vfs_adapter_statvfs(struct fs_mount_t *mountp, const char *path,
 {
 	struct vfs_adapter_ctx *ctx;
 
-	if (mountp == NULL || mountp->data == NULL || stat == NULL) {
+	if (mountp == NULL || mountp->fs_data == NULL || stat == NULL) {
 		return -EINVAL;
 	}
 
-	ctx = (struct vfs_adapter_ctx *)mountp->data;
+	ctx = (struct vfs_adapter_ctx *)mountp->fs_data;
 
 	/* Call driver statvfs */
 	return ctx->driver->ops->statvfs(ctx->sb, stat);
