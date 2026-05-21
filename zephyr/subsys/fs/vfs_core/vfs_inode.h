@@ -10,6 +10,7 @@
 #include <zephyr/sys/dlist.h>
 #include <zephyr/fs/fs.h>
 #include <sys/types.h>
+#include <time.h>
 
 #ifdef __cplusplus
 extern "C" {

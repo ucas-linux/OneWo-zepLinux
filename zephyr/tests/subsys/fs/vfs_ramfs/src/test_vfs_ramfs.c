@@ -206,8 +206,8 @@ ZTEST(vfs_ramfs, test_file_seek)
 
 	fs_file_t_init(&file);
 
-	/* Create and write file */
-	ret = fs_open(&file, TEST_FILE_PATH, FS_O_CREATE | FS_O_RDWR);
+	/* Create and write file (truncate to ensure clean state) */
+	ret = fs_open(&file, TEST_FILE_PATH, FS_O_CREATE | FS_O_RDWR | FS_O_TRUNC);
 	zassert_equal(ret, 0, "Failed to create file: %d", ret);
 
 	bytes = fs_write(&file, test_data, strlen(test_data));
