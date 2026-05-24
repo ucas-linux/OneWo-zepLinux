@@ -102,18 +102,7 @@ int zvfs_open(const char *name, int flags, int mode)
 
 	fs_file_t_init(&ptr->file);
 
-	if (flags & O_CREAT) {
-		flags &= ~O_CREAT;
-
-		rc = fs_open(&ptr->file, name, FS_O_CREATE | (mode & O_ACCMODE));
-		if (rc < 0) {
-			goto out_err;
-		}
-		rc = fs_close(&ptr->file);
-		if (rc < 0) {
-			goto out_err;
-		}
-	}
+	ARG_UNUSED(mode);
 
 	rc = fs_open(&ptr->file, name, zmode);
 	if (rc < 0) {
