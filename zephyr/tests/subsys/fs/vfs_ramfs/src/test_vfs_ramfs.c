@@ -8,9 +8,14 @@
 #include <zephyr/fs/fs.h>
 #include <string.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #define TEST_MOUNT_POINT "/ram"
 #define TEST_FILE_PATH "/ram/test.txt"
+#define TEST_POSIX_FILE_PATH "/ram/posix.txt"
+#define TEST_STDIO_FILE_PATH "/ram/stdio.txt"
 #define TEST_DIR_PATH "/ram/testdir"
 #define TEST_FILE_IN_DIR "/ram/testdir/file.txt"
 
@@ -89,6 +94,69 @@ ZTEST(vfs_ramfs, test_file_operations)
 	zassert_equal(ret, 0, "Failed to close file: %d", ret);
 
 	printk("File operations test passed\n");
+}
+
+/* Test: POSIX open/read/write/close operations */
+ZTEST(vfs_ramfs, test_posix_open_operations)
+{
+	const char *test_data = "Hello, POSIX open!";
+	char read_buf[64];
+	ssize_t bytes;
+	int fd;
+	int ret;
+	off_t pos;
+
+	printk("Testing POSIX open operations\n");
+
+	fd = open(TEST_POSIX_FILE_PATH, O_CREAT | O_TRUNC | O_RDWR, 0666);
+	zassert_true(fd >= 0, "Failed to open file: fd=%d errno=%d", fd, errno);
+
+	bytes = write(fd, test_data, strlen(test_data));
+	zassert_equal(bytes, strlen(test_data), "Write failed: %zd errno=%d", bytes, errno);
+
+	pos = lseek(fd, 0, SEEK_SET);
+	zassert_equal(pos, 0, "Seek failed: %jd errno=%d", (intmax_t)pos, errno);
+
+	memset(read_buf, 0, sizeof(read_buf));
+	bytes = read(fd, read_buf, strlen(test_data));
+	zassert_equal(bytes, strlen(test_data), "Read failed: %zd errno=%d", bytes, errno);
+	zassert_mem_equal(read_buf, test_data, strlen(test_data), "Data mismatch");
+
+	ret = close(fd);
+	zassert_equal(ret, 0, "Close failed: %d errno=%d", ret, errno);
+
+	printk("POSIX open operations test passed\n");
+}
+
+/* Test: stdio fopen/fread/fwrite/fclose operations */
+ZTEST(vfs_ramfs, test_fopen_operations)
+{
+	const char *test_data = "Hello, stdio fopen!";
+	char read_buf[64];
+	size_t bytes;
+	int ret;
+	FILE *file;
+
+	printk("Testing fopen operations\n");
+
+	file = fopen(TEST_STDIO_FILE_PATH, "w+");
+	zassert_not_null(file, "Failed to fopen file: errno=%d", errno);
+
+	bytes = fwrite(test_data, 1, strlen(test_data), file);
+	zassert_equal(bytes, strlen(test_data), "fwrite failed: %zu errno=%d", bytes, errno);
+
+	ret = fseek(file, 0, SEEK_SET);
+	zassert_equal(ret, 0, "fseek failed: %d errno=%d", ret, errno);
+
+	memset(read_buf, 0, sizeof(read_buf));
+	bytes = fread(read_buf, 1, strlen(test_data), file);
+	zassert_equal(bytes, strlen(test_data), "fread failed: %zu errno=%d", bytes, errno);
+	zassert_mem_equal(read_buf, test_data, strlen(test_data), "Data mismatch");
+
+	ret = fclose(file);
+	zassert_equal(ret, 0, "fclose failed: %d errno=%d", ret, errno);
+
+	printk("fopen operations test passed\n");
 }
 
 /* Test: Directory operations */
