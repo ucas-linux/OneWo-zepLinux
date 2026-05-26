@@ -175,7 +175,10 @@ int fs_open(struct fs_file_t *zfp, const char *file_name, fs_mode_t flags)
 	zfp->mp = mp;
 	rc = mp->fs->open(zfp, file_name, flags);
 	if (rc < 0) {
-		LOG_ERR("file open error (%d)", rc);
+		/* Suppress error log for expected failures (e.g., file not found) */
+		if (rc != -ENOENT) {
+			LOG_ERR("file open error (%d)", rc);
+		}
 		zfp->mp = NULL;
 		return rc;
 	}
