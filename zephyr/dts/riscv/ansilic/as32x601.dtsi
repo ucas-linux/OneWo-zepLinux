@@ -185,6 +185,25 @@
 			interrupts = <5 1>;
 			status = "disabled";
 		};
+
+		qspi0: qspi@42100800 {
+			compatible = "ansilic,as32x601-qspi-nor";
+			reg = <0x42100800 0x1000>, <0x10000000 0x04000000>;
+			reg-names = "ctrl", "mmap";
+			clock-frequency = <180000000>;
+			pinctrl-0 = <&qspi0_default>;
+			pinctrl-names = "default";
+			prescaler = <255>;
+			cs-high-time = <7>;
+			size = <0x04000000>;
+			sector-size = <0x40000>;
+			page-size = <0x100>;
+			write-block-size = <1>;
+			erase-block-size = <0x40000>;
+			jedec-id = [01 02 20];
+			quad-enable-requirements = "S25FL512S";
+			status = "disabled";
+		};
 	};
 
 	sram0: memory@20000000 {

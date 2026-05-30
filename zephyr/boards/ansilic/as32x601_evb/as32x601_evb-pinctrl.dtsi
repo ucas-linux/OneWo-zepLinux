@@ -90,5 +90,24 @@
 				slew-rate = <AS32X601_GPIO_DRIVE_4_5MA>;
 			};
 		};
+
+		qspi0_default: qspi0_default {
+			group1 {
+				pinmux = <AS32X601_PINMUX(AS32X601_PORT_A, 8,  AS32X601_GPIO_AF_QSPI)>,
+					 <AS32X601_PINMUX(AS32X601_PORT_A, 9,  AS32X601_GPIO_AF_QSPI)>;
+				drive-push-pull;
+				output-enable;
+				slew-rate = <AS32X601_GPIO_DRIVE_4_5MA>;
+			};
+			group2 {
+				pinmux = <AS32X601_PINMUX(AS32X601_PORT_A, 10, AS32X601_GPIO_AF_QSPI)>,
+					 <AS32X601_PINMUX(AS32X601_PORT_A, 11, AS32X601_GPIO_AF_QSPI)>,
+					 <AS32X601_PINMUX(AS32X601_PORT_A, 12, AS32X601_GPIO_AF_QSPI)>,
+					 <AS32X601_PINMUX(AS32X601_PORT_A, 13, AS32X601_GPIO_AF_QSPI)>;
+				drive-open-drain;
+				output-enable;
+				slew-rate = <AS32X601_GPIO_DRIVE_4_5MA>;
+			};
+		};
 	};
 };

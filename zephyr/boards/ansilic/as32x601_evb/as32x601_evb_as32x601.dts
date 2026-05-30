@@ -26,6 +26,7 @@
 		sw1 = &button_pb4;
 		sw2 = &button_pe10;
 		rs485-de = &rs485_de;
+		qspi-flash = &qspi0;
 	};
 
 	rs485_ctrl {
@@ -128,5 +129,9 @@
 };
 
 &tim0 {
+	status = "okay";
+};
+
+&qspi0 {
 	status = "okay";
 };
