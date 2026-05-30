@@ -222,4 +222,6 @@ module = FLASH
 module-str = flash
 source "subsys/logging/Kconfig.template.log_config"
 
+rsource "Kconfig.as32x601"
+
 endif # FLASH
