@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: Apache-2.0
+description: |
+  Ansilic AS32X601 QSPI controller with attached external NOR flash.
+  Combined driver: controller + flash chip are one device exposing
+  Zephyr's flash_driver_api.
+
+compatible: "ansilic,as32x601-qspi-nor"
+
+include: [flash-controller.yaml, pinctrl-device.yaml]
+
+properties:
+  reg:               { required: true }
+  reg-names:         { required: true }
+  clock-frequency:   { type: int, required: true }
+  pinctrl-0:         { required: true }
+  pinctrl-names:     { required: true }
+  prescaler:         { type: int, required: true }
+  cs-high-time:      { type: int, required: true }
+  size:              { type: int, required: true }
+  sector-size:       { type: int, required: true }
+  page-size:         { type: int, required: true }
+  write-block-size:  { type: int, required: true }
+  erase-block-size:  { type: int, required: true }
+  jedec-id:          { type: uint8-array, required: false }
+  quad-enable-requirements:
+    type: string
+    enum: ["S25FL512S", "NONE"]
+    default: "NONE"

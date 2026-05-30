@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config FLASH_AS32X601_QSPI
+	bool "Ansilic AS32X601 QSPI NOR flash driver"
+	default y
+	depends on DT_HAS_ANSILIC_AS32X601_QSPI_NOR_ENABLED
+	select FLASH_HAS_DRIVER_ENABLED
+	select FLASH_HAS_PAGE_LAYOUT
+	select PINCTRL
+	help
+	  Driver for the AS32X601 QSPI controller with an attached S25FL512S
+	  NOR flash. Exposes Zephyr's flash_driver_api so file systems
+	  (LittleFS, FCB, settings) can be mounted on it.

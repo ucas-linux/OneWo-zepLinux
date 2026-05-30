@@ -10,6 +10,7 @@ zephyr_sources(
   ${WEST_TOPDIR}/modules/hal/ansilic/as32x601/Peripherals/src/as32x601_usart.c
   ${WEST_TOPDIR}/modules/hal/ansilic/as32x601/Peripherals/src/as32x601_i2c.c
   ${WEST_TOPDIR}/modules/hal/ansilic/as32x601/Peripherals/src/as32x601_spi.c
+  ${WEST_TOPDIR}/modules/hal/ansilic/as32x601/Peripherals/src/as32x601_qspi.c
 )
 
 zephyr_sources(
