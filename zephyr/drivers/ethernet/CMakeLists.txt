@@ -61,6 +61,7 @@ endif()
 
 zephyr_library_sources_ifdef(CONFIG_ETH_NXP_S32_GMAC	eth_nxp_s32_gmac.c)
 zephyr_library_sources_ifdef(CONFIG_ETH_NUMAKER		eth_numaker.c)
+zephyr_library_sources_ifdef(CONFIG_ETH_AS32X601	eth_as32x601.c)
 
 if(CONFIG_ETH_NATIVE_TAP)
   zephyr_library_sources(eth_native_tap.c)

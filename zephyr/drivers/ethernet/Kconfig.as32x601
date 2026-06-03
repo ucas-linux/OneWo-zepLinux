@@ -1,0 +1,13 @@
+# AS32X601 Ethernet driver
+
+# Copyright (c) 2026 Ansilic
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig ETH_AS32X601
+	bool "Ansilic AS32X601 Ethernet driver"
+	default y
+	depends on DT_HAS_ANSILIC_AS32X601_ETH_ENABLED
+	select PINCTRL
+	help
+	  Ethernet driver for Ansilic AS32X601 SoC.
+	  Core10100 MAC with DP83867IR PHY (MDIO).
