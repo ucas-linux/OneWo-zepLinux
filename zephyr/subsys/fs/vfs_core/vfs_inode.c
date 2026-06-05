@@ -74,8 +74,9 @@ int vfs_inode_unref(struct vfs_inode *inode)
 	}
 
 	if (inode->ref_count <= 0) {
-		LOG_ERR("Inode %lu ref_count already 0", (unsigned long)inode->ino);
-		return -EINVAL;
+		LOG_ERR("Inode %lu ref_count already 0 - double unref detected!",
+			(unsigned long)inode->ino);
+		k_panic();  /* Catch double unref bugs immediately */
 	}
 
 	inode->ref_count--;
