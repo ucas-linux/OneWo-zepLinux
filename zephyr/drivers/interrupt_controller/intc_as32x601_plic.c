@@ -215,6 +215,26 @@ static void as32x601_plic_mext_dispatch(uint32_t irq)
 	case USART0_IRQn:
 		USART0_IRQ_Handler();
 		break;
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(canfd0), okay)
+	case CANFD0_IRQn:
+		CANFD0_IRQ_Handler();
+		break;
+#endif
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(canfd1), okay)
+	case CANFD1_IRQn:
+		CANFD1_IRQ_Handler();
+		break;
+#endif
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(canfd2), okay)
+	case CANFD2_IRQn:
+		CANFD2_IRQ_Handler();
+		break;
+#endif
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(canfd3), okay)
+	case CANFD3_IRQn:
+		CANFD3_IRQ_Handler();
+		break;
+#endif
 	default:
 		break;
 	}

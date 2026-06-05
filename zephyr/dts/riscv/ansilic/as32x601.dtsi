@@ -186,6 +186,56 @@
 			status = "disabled";
 		};
 
+		adc0: adc@41001000 {
+			compatible = "ansilic,as32x601-adc";
+			reg = <0x41001000 0x1000>;
+			#io-channel-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		adc1: adc@41002000 {
+			compatible = "ansilic,as32x601-adc";
+			reg = <0x41002000 0x1000>;
+			#io-channel-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		canfd0: can@41010000 {
+			compatible = "ansilic,as32x601-canfd";
+			reg = <0x41010000 0x1000>;
+			interrupt-parent = <&plic>;
+			interrupts = <6 1>;
+			status = "disabled";
+		};
+
+		canfd1: can@41020000 {
+			compatible = "ansilic,as32x601-canfd";
+			reg = <0x41020000 0x1000>;
+			interrupt-parent = <&plic>;
+			interrupts = <7 1>;
+			status = "disabled";
+		};
+
+		canfd2: can@42010000 {
+			compatible = "ansilic,as32x601-canfd";
+			reg = <0x42010000 0x1000>;
+			interrupt-parent = <&plic>;
+			interrupts = <17 1>;
+			status = "disabled";
+		};
+
+		canfd3: can@42020000 {
+			compatible = "ansilic,as32x601-canfd";
+			reg = <0x42020000 0x1000>;
+			interrupt-parent = <&plic>;
+			interrupts = <18 1>;
+			status = "disabled";
+		};
+
 		qspi0: qspi@42100800 {
 			compatible = "ansilic,as32x601-qspi-nor";
 			reg = <0x42100800 0x1000>, <0x10000000 0x04000000>;

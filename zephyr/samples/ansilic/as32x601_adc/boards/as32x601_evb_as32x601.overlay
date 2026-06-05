@@ -1,0 +1,41 @@
+#include <zephyr/dt-bindings/adc/adc.h>
+#include <zephyr/dt-bindings/pinctrl/ansilic-as32x601-pinctrl.h>
+
+&pinctrl {
+	adc1_default: adc1_default {
+		group1 {
+			pinmux = <AS32X601_PINMUX_ANALOG(AS32X601_PORT_F, 11)>;
+		};
+		group2 {
+			pinmux = <AS32X601_PINMUX_ANALOG(AS32X601_PORT_F, 12)>;
+		};
+	};
+};
+
+&adc1 {
+	status = "okay";
+	pinctrl-0 = <&adc1_default>;
+	pinctrl-names = "default";
+
+	channel@e {
+		reg = <14>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_VDD_1";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <12>;
+	};
+
+	channel@f {
+		reg = <15>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_VDD_1";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <12>;
+	};
+};
+
+/ {
+	zephyr,user {
+		io-channels = <&adc1 14>, <&adc1 15>;
+	};
+};
