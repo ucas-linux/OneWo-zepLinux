@@ -337,9 +337,9 @@ static int vfs_adapter_opendir(struct fs_dir_t *dirp, const char *fs_path)
 
 	/* Call driver opendir */
 	ret = ctx->driver->ops->opendir(inode, dirp);
-	if (ret < 0) {
-		vfs_inode_unref(inode);
-	}
+
+	/* Always unref the inode from lookup_path, as opendir has already ref'd it internally */
+	vfs_inode_unref(inode);
 
 	return ret;
 }
@@ -409,7 +409,9 @@ static int vfs_adapter_open(struct fs_file_t *filp, const char *fs_path, fs_mode
 
 	/* Call driver open */
 	ret = ctx->driver->ops->open(inode, filp);
-	if (ret < 0) {
+
+	/* Always unref the inode from lookup_path/create, as open has already ref'd it internally */
+	if (inode) {
 		vfs_inode_unref(inode);
 	}
 
