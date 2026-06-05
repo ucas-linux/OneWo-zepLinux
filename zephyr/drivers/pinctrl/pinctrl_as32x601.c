@@ -2,6 +2,7 @@
 
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/sys/util.h>
+#include <zephyr/dt-bindings/pinctrl/ansilic-as32x601-pinctrl.h>
 
 #include <as32x601_gpio.h>
 #include <as32x601_smu.h>
@@ -74,6 +75,15 @@ static int as32x601_configure_pin(pinctrl_soc_pin_t pinmux)
 	ret = as32x601_port_clock_enable(port);
 	if (ret < 0) {
 		return ret;
+	}
+
+	if (pinmux & BIT(AS32X601_PIN_ANALOG_POS)) {
+		GPIO_StructInit(&init);
+		init.GPIO_Pin   = BIT(pin);
+		init.GPIO_Mode  = GPIO_Mode_AN;
+		init.GPIO_IType = GPIO_IN_FLOATING;
+		GPIO_Init(gpio, &init);
+		return 0;
 	}
 
 	GPIO_StructInit(&init);

@@ -25,6 +25,10 @@
 #define AS32X601_GPIO_AF_IIC1    2U
 #define AS32X601_GPIO_AF_QSPI    1U   /* GPIO_AF_QSPI from vendor as32x601_gpio.h */
 #define AS32X601_GPIO_AF_MAC     2U   /* MAC MII alternate function */
+#define AS32X601_GPIO_AF_CAN0    2U   /* GPIO_AF_CAN0_M1 from vendor as32x601_gpio.h */
+#define AS32X601_GPIO_AF_CAN1    2U
+#define AS32X601_GPIO_AF_CAN2    2U
+#define AS32X601_GPIO_AF_CAN3    2U
 
 #define AS32X601_GPIO_DRIVE_4_5MA  0U
 #define AS32X601_GPIO_DRIVE_9MA    1U
@@ -53,5 +57,12 @@
 	((((port) & AS32X601_PIN_PORT_MASK) << AS32X601_PIN_PORT_POS) | \
 	 (((pin) & AS32X601_PIN_NUM_MASK) << AS32X601_PIN_NUM_POS) | \
 	 (((af) & AS32X601_PIN_AF_MASK) << AS32X601_PIN_AF_POS))
+
+#define AS32X601_PIN_ANALOG_POS      21U
+
+#define AS32X601_PINMUX_ANALOG(port, pin) \
+	((((port) & AS32X601_PIN_PORT_MASK) << AS32X601_PIN_PORT_POS) | \
+	 (((pin)  & AS32X601_PIN_NUM_MASK)  << AS32X601_PIN_NUM_POS)  | \
+	 BIT(AS32X601_PIN_ANALOG_POS))
 
 #endif

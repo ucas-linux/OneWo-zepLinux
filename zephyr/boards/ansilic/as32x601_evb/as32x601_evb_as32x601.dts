@@ -22,6 +22,8 @@
 		serial-0 = &uart0;
 		gpio-0 = &gpioa;
 		led0 = &user_led0;
+		led1 = &user_led1;
+		led2 = &user_led2;
 		sw0 = &button_pb3;
 		sw1 = &button_pb4;
 		sw2 = &button_pe10;
@@ -41,7 +43,15 @@
 		compatible = "gpio-leds";
 		user_led0: led_0 {
 			gpios = <&gpiog 15 GPIO_ACTIVE_LOW>;
-			label = "User LED0";
+			label = "User LED4";
+		};
+		user_led1: led_1 {
+			gpios = <&gpiog 14 GPIO_ACTIVE_LOW>;
+			label = "User LED5";
+		};
+		user_led2: led_2 {
+			gpios = <&gpiog 10 GPIO_ACTIVE_LOW>;
+			label = "User LED6";
 		};
 	};
 
@@ -138,4 +148,14 @@
 
 &mac {
 	status = "okay";
+};
+
+&canfd3 {
+	status = "okay";
+	pinctrl-0 = <&canfd3_default>;
+	pinctrl-names = "default";
+	bitrate = <500000>;
+	sample-point = <875>;
+	bitrate-data = <2000000>;
+	sample-point-data = <750>;
 };

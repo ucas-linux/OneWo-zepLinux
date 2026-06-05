@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config CAN_AS32X601
+	bool "Ansilic AS32X601 CANFD driver"
+	default y
+	depends on DT_HAS_ANSILIC_AS32X601_CANFD_ENABLED
+	select CAN_FD_MODE
+	help
+	  Enable the CAN driver for the AS32X601 on-chip CANFD controllers.
+	  The driver exposes Zephyr's can_driver_api and supports the
+	  canfd0..canfd3 instances described by devicetree.

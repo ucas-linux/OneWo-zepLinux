@@ -1,0 +1,8 @@
+sample:
+  name: AS32X601 CANFD echo
+tests:
+  sample.ansilic.as32x601_canfd:
+    platform_allow:
+      - as32x601_evb/as32x601
+    tags: can
+    harness: console

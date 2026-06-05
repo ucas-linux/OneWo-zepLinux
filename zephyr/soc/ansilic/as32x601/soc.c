@@ -67,7 +67,15 @@ static void as32x601_clock_init(void)
 	pll_init.FIRCCalibrationValue = 0x00;
 	pll_init.PLLConfig.PLLState = ENABLE;
 	pll_init.PLLConfig.PLLSource = SMU_PLLCLK_OSC;
-	pll_init.PLLConfig.PLLDivR = 0x04;
+	/*
+	 * PLLR feeds CANCLKx2 only (system clock derives from PLLQ), so PLLDivR
+	 * can be tuned for CAN without disturbing the 180MHz system clock.
+	 * VCO = (20MHz/N=20)*F=180 = 180MHz; PLLR = VCO/R=3 = 60MHz.
+	 * With CANX2CLKDiv1 => CANCLKx2 = 60MHz, real CAN timing clock = 30MHz,
+	 * which divides evenly into 500k (x60) and 2M (x15). The previous
+	 * R=4/div8 gave CANCLKx2=5.625MHz, unable to produce any standard rate.
+	 */
+	pll_init.PLLConfig.PLLDivR = 0x03;
 	pll_init.PLLConfig.PLLDivQ = 0x01;
 	pll_init.PLLConfig.PLLDivN = 0x14;
 	pll_init.PLLConfig.PLLDivF = 0xB4;
@@ -81,7 +89,7 @@ static void as32x601_clock_init(void)
 	clock_init.AXI4Bus3CLKDiv = AXI4Bus3CLKDiv2;
 	clock_init.APBBus0CLKDiv = APBBus0CLKDiv2;
 	clock_init.APBBus1CLKDiv = APBBus1CLKDiv2;
-	clock_init.CANX2CLKDiv = CANX2CLKDiv8;
+	clock_init.CANX2CLKDiv = CANX2CLKDiv1;
 	SMU_ClockInit(&clock_init);
 	SMU_GetClocksFreq(&SMU_ClocksStruct);
 

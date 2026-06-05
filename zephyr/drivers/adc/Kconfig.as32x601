@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config ADC_AS32X601
+	bool "Ansilic AS32X601 ADC driver"
+	default y
+	depends on DT_HAS_ANSILIC_AS32X601_ADC_ENABLED
+	help
+	  Enable the ADC driver for the AS32X601 on-chip ADC controllers.
+	  The driver exposes Zephyr's adc_driver_api and supports adc0 and
+	  adc1 instances described by devicetree.

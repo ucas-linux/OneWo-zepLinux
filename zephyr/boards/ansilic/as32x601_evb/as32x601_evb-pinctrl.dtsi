@@ -4,6 +4,27 @@
 
 / {
 	pinctrl {
+		canfd3_default: canfd3_default {
+			group1 {
+				pinmux = <AS32X601_PINMUX(AS32X601_PORT_C, 7, AS32X601_GPIO_AF_CAN3)>;
+				drive-push-pull;
+				output-enable;
+				slew-rate = <AS32X601_GPIO_DRIVE_9MA>;
+			};
+			group2 {
+				pinmux = <AS32X601_PINMUX(AS32X601_PORT_C, 8, AS32X601_GPIO_AF_CAN3)>;
+				input-enable;
+				/*
+				 * CAN RX must idle recessive (high). Match the validated IAR
+				 * config (GPIO_IPU) so the line does not float to a stuck
+				 * dominant when no transceiver actively drives it — a floating
+				 * RX prevents TX from ever completing (-EIO on send).
+				 */
+				bias-pull-up;
+				slew-rate = <AS32X601_GPIO_DRIVE_9MA>;
+			};
+		};
+
 		uart0_default: uart0_default {
 			group1 {
 				pinmux = <AS32X601_PINMUX(AS32X601_PORT_D, 8, AS32X601_GPIO_AF_USART0)>;

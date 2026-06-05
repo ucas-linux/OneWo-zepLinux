@@ -13,6 +13,7 @@ zephyr_library_sources_ifdef(CONFIG_USERSPACE               can_handlers.c)
 
 # CAN subsystem driver files
 # zephyr-keep-sorted-start
+zephyr_library_sources_ifdef(CONFIG_CAN_AS32X601           can_as32x601.c)
 zephyr_library_sources_ifdef(CONFIG_CAN_ESP32_TWAI          can_esp32_twai.c)
 zephyr_library_sources_ifdef(CONFIG_CAN_FAKE                can_fake.c)
 zephyr_library_sources_ifdef(CONFIG_CAN_KVASER_PCI          can_kvaser_pci.c)
