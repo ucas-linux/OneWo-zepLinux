@@ -204,6 +204,17 @@
 			quad-enable-requirements = "S25FL512S";
 			status = "disabled";
 		};
+
+		mac: ethernet@50000000 {
+			compatible = "ansilic,as32x601-eth";
+			reg = <0x50000000 0x1000>;
+			interrupt-parent = <&plic>;
+			interrupts = <24 4>;
+			pinctrl-0 = <&mac_default>;
+			pinctrl-names = "default";
+			local-mac-address = [d8 5e ff ff ff 01];
+			status = "disabled";
+		};
 	};
 
 	sram0: memory@20000000 {

@@ -1,0 +1,20 @@
+# Copyright (c) 2026 Ansilic Technology Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0
+
+description: Ansilic AS32X601 Ethernet controller (Core10100 MAC)
+
+compatible: "ansilic,as32x601-eth"
+
+include:
+  - name: ethernet-controller.yaml
+  - name: pinctrl-device.yaml
+
+properties:
+  reg:
+    required: true
+
+  interrupts:
+    required: true
+
+  local-mac-address:
+    required: false

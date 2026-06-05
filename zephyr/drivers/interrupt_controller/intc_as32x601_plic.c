@@ -9,7 +9,7 @@
 #include <zephyr/irq.h>
 #include <zephyr/arch/riscv/csr.h>
 #include <zephyr/arch/riscv/irq.h>
-#include <zephyr/sys/printk.h>
+#include <zephyr/irq_multilevel.h>
 #include <zephyr/sys/util_macro.h>
 
 #include <as32x601_plic.h>
@@ -28,6 +28,11 @@ static PLIC_EXTITypeDef as32x601_plic_exti;
 
 static ALWAYS_INLINE uint32_t plic_local_irq(uint32_t irq)
 {
+#if defined(CONFIG_MULTI_LEVEL_INTERRUPTS)
+	if (irq_get_level(irq) == 2U) {
+		return irq_from_level_2(irq);
+	}
+#endif
 	return irq & 0xffU;
 }
 
@@ -203,6 +208,9 @@ static void as32x601_plic_mext_dispatch(uint32_t irq)
 		break;
 	case GPIOG_IRQn:
 		GPIOG_IRQ_Handler();
+		break;
+	case MAC_IRQn:
+		MAC_IRQ_Handler();
 		break;
 	case USART0_IRQn:
 		USART0_IRQ_Handler();
