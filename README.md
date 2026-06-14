@@ -87,6 +87,44 @@ Enabled through the `CONFIG_SCHED_LINUX` Kconfig option, serving as Zephyr's 4th
 
 ## Build and Test
 
+### Using Docker (Recommended)
+
+We provide pre-built Docker images with Zephyr SDK 0.17.4 for easy development:
+
+```bash
+# Pull the Docker image
+docker pull zhouzhouyi/zephyr-sdk:latest
+# Or specific version
+docker pull zhouzhouyi/zephyr-sdk:0.17.4
+
+# Run the container with your project mounted
+docker run -it --rm \
+  -v $(pwd):/workspace \
+  -w /workspace \
+  zhouzhouyi/zephyr-sdk:latest
+
+# Inside the container, build your project
+west build -b rocket_pi/stm32f401xe zephyr/tests/kernel/sched/schedule_api
+
+# Flash the firmware (requires USB device passthrough)
+docker run -it --rm \
+  --privileged \
+  -v /dev:/dev \
+  -v $(pwd):/workspace \
+  -w /workspace \
+  zhouzhouyi/zephyr-sdk:latest \
+  west flash
+```
+
+**Docker Image Features:**
+- Ubuntu 22.04 base
+- Zephyr SDK 0.17.4 pre-installed
+- All required build dependencies (CMake, Ninja, device-tree-compiler, etc.)
+- West tool and Python dependencies
+- Ready to use, no manual SDK installation needed
+
+### Native Build
+
 ```bash
 # Build kernel integration test (real thread scheduling)
 west build -b rocket_pi/stm32f401xe zephyr/tests/kernel/sched/schedule_api
