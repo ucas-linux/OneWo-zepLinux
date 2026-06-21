@@ -32,7 +32,7 @@ void test_result(const char *name, bool pass)
 	}
 }
 
-/* ===== PART 1: 栈内存测试 (100个) ===== */
+/* ===== PART 1: 栈内存测试 ===== */
 void test_stack_memory(void)
 {
 	printk("\n=== PART 1: Stack Memory Tests (59 tests) ===\n\n");
@@ -80,7 +80,7 @@ void test_stack_memory(void)
 	printk("\nPart 1 Result: %d/%d passed\n", passed, total);
 }
 
-/* ===== PART 2: 堆内存测试 (100个) ===== */
+/* ===== PART 2: 堆内存测试 ===== */
 void test_heap_memory(void)
 {
 	printk("\n=== PART 2: Heap Memory Tests (48 tests) ===\n\n");
@@ -160,7 +160,7 @@ void test_heap_memory(void)
 	       passed - 59, total - 59);
 }
 
-/* ===== PART 3: 内存Slab测试 (100个) ===== */
+/* ===== PART 3: 内存Slab测试 ===== */
 void test_memory_slab(void)
 {
 	printk("\n=== PART 3: Memory Slab Tests (71 tests) ===\n\n");
@@ -226,7 +226,7 @@ void test_memory_slab(void)
 	       passed - 107, total - 107);
 }
 
-/* ===== PART 4: 内存操作测试 (100个) ===== */
+/* ===== PART 4: 内存操作测试 ===== */
 void test_memory_operations(void)
 {
 	printk("\n=== PART 4: Memory Operations Tests (54 tests) ===\n\n");
@@ -268,7 +268,7 @@ void test_memory_operations(void)
 	       passed - 178, total - 178);
 }
 
-/* ===== PART 5: 内存边界测试 (100个) ===== */
+/* ===== PART 5: 内存边界测试 ===== */
 void test_memory_boundaries(void)
 {
 	printk("\n=== PART 5: Memory Boundary Tests (62 tests) ===\n\n");

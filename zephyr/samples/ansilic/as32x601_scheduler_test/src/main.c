@@ -37,7 +37,7 @@ void test_result(const char *name, bool pass)
 	}
 }
 
-/* ===== PART 1: 基础线程测试 (100个) ===== */
+/* ===== PART 1: 基础线程测试 ===== */
 void simple_thread_entry(void *p1, void *p2, void *p3)
 {
 	int id = (int)(intptr_t)p1;
@@ -81,7 +81,7 @@ void test_basic_threads(void)
 	printk("\nPart 1 Result: %d/%d passed\n", passed, total);
 }
 
-/* ===== PART 2: 线程同步测试 (100个) ===== */
+/* ===== PART 2: 线程同步测试 ===== */
 void semaphore_thread(void *p1, void *p2, void *p3)
 {
 	int id = (int)(intptr_t)p1;
@@ -142,7 +142,7 @@ void test_synchronization(void)
 	       passed - 67, total - 67);
 }
 
-/* ===== PART 3: 线程通信测试 (100个) ===== */
+/* ===== PART 3: 线程通信测试 ===== */
 void msgq_sender(void *p1, void *p2, void *p3)
 {
 	int id = (int)(intptr_t)p1;
@@ -215,7 +215,7 @@ void test_communication(void)
 	       passed - 120, total - 120);
 }
 
-/* ===== PART 4: 线程生命周期测试 (100个) ===== */
+/* ===== PART 4: 线程生命周期测试 ===== */
 void suspend_resume_thread(void *p1, void *p2, void *p3)
 {
 	int id = (int)(intptr_t)p1;
@@ -265,7 +265,7 @@ void test_lifecycle(void)
 	       passed - 181, total - 181);
 }
 
-/* ===== PART 5: 调度策略测试 (100个) ===== */
+/* ===== PART 5: 调度策略测试 ===== */
 void preempt_thread(void *p1, void *p2, void *p3)
 {
 	int id = (int)(intptr_t)p1;
