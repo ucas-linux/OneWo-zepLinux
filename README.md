@@ -1,12 +1,17 @@
 # OneWo zepLinux — A New Zephyr OS with Linux API for MCU, Developed by OneWo-rtLinux Team
 
-Implementing a Linux-compatible interface layer on Zephyr RTOS, enabling Linux applications to run on ARM Cortex-M3 and ANSILIC RISC-V 32 microcontrollers with minimal modifications.
+Implementing a Linux-compatible interface layer on Zephyr RTOS, enabling Linux applications to run on ARM Cortex-M4 and ANSILIC RISC-V 32 microcontrollers with minimal modifications.
 
 ## Core Highlights
 
 - 4 Linux-style schedulers (DL/RT/CFS/Idle) deeply integrated into the Zephyr kernel, truly driving `k_thread` scheduling decisions
 - Currently documented 39 Linux/POSIX compatible interfaces, covering threads, processes, scheduling, signals, memory, devices, and I/O multiplexing modules
-- Target platforms: rocket_pi/stm32f401xe (Arm Cortex M3), ANSILIC/as32x601 (RISC-V 32)
+- Supported development boards: [Rocket-Pi](https://www.rocketpi.club/) (`STM32F401RE`, ARM Cortex-M4) and [ANSIC-EVB601](https://ansilic.com/product-center/ansic-evb601) (`AS32X601`, RISC-V 32)
+
+## Supported Development Boards
+
+- ARM: [Rocket-Pi](https://www.rocketpi.club/), based on `STM32F401RE`
+- RISC-V: [ANSIC-EVB601](https://ansilic.com/product-center/ansic-evb601), based on `AS32X601`
 
 ## Directory Structure
 
