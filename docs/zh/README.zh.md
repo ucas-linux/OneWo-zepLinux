@@ -1,12 +1,17 @@
 # OneWo zepLinux — a new Zephyr OS with Linux API for MCU，developed by OneWo-rtLinux team.
 
-在 Zephyr RTOS 上实现 Linux 兼容接口层，让 Linux 应用以最小改动运行在 ARM Cortex-M3 及国科安芯 RV32等微控制器上。
+在 Zephyr RTOS 上实现 Linux 兼容接口层，让 Linux 应用以最小改动运行在 ARM Cortex-M4 及国科安芯 RV32 等微控制器上。
 
 ## 核心亮点
 
 - 4 类 Linux 风格调度器（DL/RT/CFS/Idle）深度集成到 Zephyr 内核，真正驱动 `k_thread` 调度决策
 - 当前文档已整理 39 个 Linux/POSIX 兼容接口，覆盖线程、进程、调度、信号、内存、设备与 I/O 多路复用等模块
-- 目标平台： rocket_pi/stm32f401xe (Arm Cortex M3)， 国科安芯/as32x601 (RISC-V 32)
+- 已适配开发板：[Rocket-Pi](https://www.rocketpi.club/)（`STM32F401RE`，ARM Cortex-M4）和 [ANSIC-EVB601](https://ansilic.com/product-center/ansic-evb601)（`AS32X601`，RISC-V 32）
+
+## 已适配开发板
+
+- ARM: [Rocket-Pi](https://www.rocketpi.club/)，基于 `STM32F401RE`
+- RISC-V: [ANSIC-EVB601](https://ansilic.com/product-center/ansic-evb601)，基于 `AS32X601`
 
 ## 目录结构
 
