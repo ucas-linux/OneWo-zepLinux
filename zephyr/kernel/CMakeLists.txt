@@ -90,6 +90,7 @@ kernel_sources_ifdef(CONFIG_MULTITHREADING
   thread.c
   sched.c
   pipe.c
+  process.c
   )
 
 if(CONFIG_MULTITHREADING)

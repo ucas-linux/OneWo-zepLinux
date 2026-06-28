@@ -8,6 +8,7 @@
 #include <time.h>
 
 #include <zephyr/kernel.h>
+#include <zephyr/kernel/process.h>
 #include <zephyr/posix/sys/times.h>
 #include <zephyr/posix/unistd.h>
 #include <zephyr/sys/clock.h>
@@ -23,11 +24,15 @@ pid_t getpid(void)
 	 * PID one is usually reserved for the init process.
 	 * Also note, that negative PIDs may be used by kill()
 	 * to send signals to process groups in some implementations.
-	 *
-	 * At the moment, getpid just returns an arbitrary number >= 2
 	 */
 
-	return 42;
+	struct z_process *proc = process_current();
+	if (proc) {
+		return proc->pid;
+	}
+
+	/* Fallback to init process PID if no process context */
+	return PID_INIT;
 }
 #ifdef CONFIG_POSIX_MULTI_PROCESS_ALIAS_GETPID
 FUNC_ALIAS(getpid, _getpid, pid_t);
