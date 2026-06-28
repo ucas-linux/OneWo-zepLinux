@@ -1136,6 +1136,38 @@ config BOOTARGS_ARGS_BUFFER_SIZE
 
 endif # BOOTARGS
 
+menuconfig PROCESS_MODEL
+	bool "Linux-style process model support"
+	depends on MULTITHREADING
+	default n
+	help
+	  Enable Linux-style process model on top of Zephyr threads.
+	  This provides process abstraction with PID management,
+	  file descriptor tables, environment variables, and
+	  parent-child relationships. Adapted from Embox kernel
+	  for MCU environments.
+
+if PROCESS_MODEL
+
+config MAX_PROCESS_COUNT
+	int "Maximum number of processes"
+	default 16
+	range 1 64
+	help
+	  Maximum number of concurrent processes supported.
+	  This is statically allocated for MCU memory constraints.
+	  Each process consumes approximately 200-300 bytes.
+
+config MAX_FD_PER_PROCESS
+	int "Maximum file descriptors per process"
+	default 16
+	range 1 64
+	help
+	  Maximum number of file descriptors per process.
+	  This is statically allocated within each process structure.
+
+endif # PROCESS_MODEL
+
 endmenu
 
 rsource "Kconfig.device"

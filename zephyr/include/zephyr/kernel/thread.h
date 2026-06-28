@@ -369,6 +369,12 @@ struct k_thread {
 	_wait_q_t  halt_queue;
 #endif /* CONFIG_SMP */
 
+	/** Process this thread belongs to (for Linux process model) */
+	struct z_process *process;
+
+	/** Node in process's thread list */
+	sys_dnode_t process_thread_node;
+
 	/** arch-specifics: must always be at the end */
 	struct _thread_arch arch;
 };
