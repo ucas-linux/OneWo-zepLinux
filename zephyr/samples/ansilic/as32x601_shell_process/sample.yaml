@@ -1,0 +1,9 @@
+sample:
+  name: Shell Process Execution for AS32X601
+  description: Embox-style shell with process-based command execution
+tests:
+  sample.ansilic.as32x601_shell_process:
+    platform_allow: as32x601_evb/as32x601
+    integration_platforms:
+      - as32x601_evb/as32x601
+    tags: shell process
