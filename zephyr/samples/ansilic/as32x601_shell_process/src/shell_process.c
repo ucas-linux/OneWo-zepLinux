@@ -63,43 +63,43 @@ static void task_trampoline(void *arg1, void *arg2, void *arg3)
 	struct task_trampoline_arg *arg = (struct task_trampoline_arg *)arg1;
 	void *result;
 
-	printk("DEBUG: task_trampoline started, arg=%p\n", arg);
+	//printk("DEBUG: task_trampoline started, arg=%p\n", arg);
 	k_msleep(10); /* Small delay to ensure parent is ready */
 
 	if (!arg || !arg->run) {
-		printk("DEBUG: task_trampoline - invalid arg\n");
+		//printk("DEBUG: task_trampoline - invalid arg\n");
 		return;
 	}
 
 	/* Execute user function */
-	printk("DEBUG: task_trampoline - calling user function at %p\n", arg->run);
+	//printk("DEBUG: task_trampoline - calling user function at %p\n", arg->run);
 	result = arg->run(arg->run_arg);
-	printk("DEBUG: task_trampoline - user function returned %p\n", result);
+	//printk("DEBUG: task_trampoline - user function returned %p\n", result);
 
 	/* Send exit notification */
 	struct z_process *proc = process_current();
-	printk("DEBUG: task_trampoline - process_current returned %p\n", proc);
+	//printk("DEBUG: task_trampoline - process_current returned %p\n", proc);
 	if (proc) {
-		printk("DEBUG: task_trampoline - sending exit msg for PID %d\n", proc->pid);
+		//printk("DEBUG: task_trampoline - sending exit msg for PID %d\n", proc->pid);
 		struct process_exit_msg msg = {
 			.pid = proc->pid,
 			.exit_code = (int)(intptr_t)result,
 		};
 		int ret = k_msgq_put(&process_exit_queue, &msg, K_NO_WAIT);
-		printk("DEBUG: task_trampoline - k_msgq_put returned %d\n", ret);
+		//printk("DEBUG: task_trampoline - k_msgq_put returned %d\n", ret);
 	}
 
 	/* Free trampoline argument */
-	printk("DEBUG: task_trampoline - freeing trampoline arg\n");
+	//printk("DEBUG: task_trampoline - freeing trampoline arg\n");
 	k_free(arg);
 
 	/* CRITICAL: Yield to let waitpid start processing before we exit */
-	printk("DEBUG: task_trampoline - yielding before exit\n");
+	//printk("DEBUG: task_trampoline - yielding before exit\n");
 	k_yield();
 	k_msleep(100);  /* Give plenty of time for waitpid to call k_thread_join */
 
-	printk("DEBUG: task_trampoline - about to return (thread will exit)\n");
-	printk("DEBUG: task_trampoline - SP=%p\n", (void *)__builtin_frame_address(0));
+	//printk("DEBUG: task_trampoline - about to return (thread will exit)\n");
+	//printk("DEBUG: task_trampoline - SP=%p\n", (void *)__builtin_frame_address(0));
 }
 
 /**
@@ -113,23 +113,23 @@ pid_t new_task(const char *name, void *(*run)(void *), void *arg)
 		return -EINVAL;
 	}
 
-	printk("DEBUG: new_task - getting parent process\n");
+	//printk("DEBUG: new_task - getting parent process\n");
 	/* Get current process as parent */
 	struct z_process *parent = process_current();
 	if (!parent) {
-		printk("DEBUG: new_task - no parent process!\n");
+		//printk("DEBUG: new_task - no parent process!\n");
 		return -ESRCH;
 	}
-	printk("DEBUG: new_task - parent PID = %d\n", parent->pid);
+	//printk("DEBUG: new_task - parent PID = %d\n", parent->pid);
 
 	/* Create new process */
-	printk("DEBUG: new_task - creating child process\n");
+	//printk("DEBUG: new_task - creating child process\n");
 	struct z_process *child = process_create(parent);
 	if (!child) {
-		printk("DEBUG: new_task - process_create failed!\n");
+		//printk("DEBUG: new_task - process_create failed!\n");
 		return -ENOMEM;
 	}
-	printk("DEBUG: new_task - child PID = %d\n", child->pid);
+	//printk("DEBUG: new_task - child PID = %d\n", child->pid);
 
 	/* Allocate thread stack from pool */
 	k_thread_stack_t *stack = NULL;
@@ -141,14 +141,14 @@ pid_t new_task(const char *name, void *(*run)(void *), void *arg)
 			stack_pool_used[i] = true;
 			stack = &stack_pool[i][0];  /* Direct array access */
 			stack_index = i;
-			printk("DEBUG: new_task - allocated stack from pool index %d at %p\n", i, stack);
+			//printk("DEBUG: new_task - allocated stack from pool index %d at %p\n", i, stack);
 			break;
 		}
 	}
 	k_mutex_unlock(&stack_pool_lock);
 
 	if (!stack) {
-		printk("DEBUG: new_task - stack pool exhausted!\n");
+		//printk("DEBUG: new_task - stack pool exhausted!\n");
 		process_exit(child, -ENOMEM);
 		return -ENOMEM;
 	}
@@ -180,11 +180,11 @@ pid_t new_task(const char *name, void *(*run)(void *), void *arg)
 	/* CRITICAL: Register thread with process BEFORE starting it
 	 * Otherwise the thread starts immediately and gets the wrong process!
 	 */
-	printk("DEBUG: new_task - registering thread with child process BEFORE create\n");
+	//printk("DEBUG: new_task - registering thread with child process BEFORE create\n");
 	process_register_thread(child, thread);
 
 	/* Create and start thread */
-	printk("DEBUG: new_task - creating thread\n");
+	//printk("DEBUG: new_task - creating thread\n");
 	k_tid_t tid = k_thread_create(
 		thread,
 		stack,
@@ -209,7 +209,7 @@ pid_t new_task(const char *name, void *(*run)(void *), void *arg)
 		return -EAGAIN;
 	}
 
-	printk("DEBUG: new_task - thread created, tid = %p\n", tid);
+	//printk("DEBUG: new_task - thread created, tid = %p\n", tid);
 
 	/* Store stack index and thread pointers for later cleanup */
 	k_mutex_lock(&stack_tracker_lock, K_FOREVER);
@@ -218,8 +218,8 @@ pid_t new_task(const char *name, void *(*run)(void *), void *arg)
 			stack_tracker[i].pid = child->pid;
 			stack_tracker[i].stack_index = stack_index;
 			stack_tracker[i].thread = thread;
-			printk("DEBUG: new_task - stored stack index %d for PID %d\n",
-			       stack_index, child->pid);
+			/*printk("DEBUG: new_task - stored stack index %d for PID %d\n",
+			  stack_index, child->pid);*/
 			break;
 		}
 	}
@@ -234,7 +234,7 @@ pid_t new_task(const char *name, void *(*run)(void *), void *arg)
 		k_thread_name_set(tid, default_name);
 	}
 
-	printk("DEBUG: new_task - returning PID %d\n", child->pid);
+	//printk("DEBUG: new_task - returning PID %d\n", child->pid);
 	return child->pid;
 }
 
@@ -248,25 +248,25 @@ pid_t waitpid(pid_t pid, int *status, int options)
 	struct process_exit_msg msg;
 	int ret;
 
-	printk("DEBUG: waitpid - waiting for PID %d\n", pid);
+	//printk("DEBUG: waitpid - waiting for PID %d\n", pid);
 
 	/* Wait for exit message from the specified process */
 	while (1) {
 		ret = k_msgq_get(&process_exit_queue, &msg, K_FOREVER);
 		if (ret == 0) {
-			printk("DEBUG: waitpid - got exit msg for PID %d\n", msg.pid);
+			//printk("DEBUG: waitpid - got exit msg for PID %d\n", msg.pid);
 			if (msg.pid == pid || pid == -1) {
 				if (status) {
 					*status = msg.exit_code;
 				}
 
 				/* CRITICAL: Wait for the thread to fully exit before cleanup */
-				printk("DEBUG: waitpid - getting process %d\n", msg.pid);
+				//printk("DEBUG: waitpid - getting process %d\n", msg.pid);
 				struct z_process *proc = process_get(msg.pid);
-				printk("DEBUG: waitpid - process_get returned %p\n", proc);
+				//printk("DEBUG: waitpid - process_get returned %p\n", proc);
 
 				if (proc && proc->main_thread) {
-					printk("DEBUG: waitpid - main_thread = %p\n", proc->main_thread);
+					//printk("DEBUG: waitpid - main_thread = %p\n", proc->main_thread);
 
 					/* Retrieve stack index from tracker */
 					int stack_index = -1;
@@ -276,8 +276,8 @@ pid_t waitpid(pid_t pid, int *status, int options)
 					for (int i = 0; i < MAX_TRACKED_STACKS; i++) {
 						if (stack_tracker[i].pid == msg.pid) {
 							stack_index = stack_tracker[i].stack_index;
-							printk("DEBUG: waitpid - found stack index %d for PID %d\n",
-							       stack_index, msg.pid);
+							/*printk("DEBUG: waitpid - found stack index %d for PID %d\n",
+							  stack_index, msg.pid);*/
 							stack_tracker[i].pid = 0; /* Clear entry */
 							stack_tracker[i].stack_index = -1;
 							stack_tracker[i].thread = NULL;
@@ -286,19 +286,19 @@ pid_t waitpid(pid_t pid, int *status, int options)
 					}
 					k_mutex_unlock(&stack_tracker_lock);
 
-					printk("DEBUG: waitpid - stack_index = %d\n", stack_index);
+					//printk("DEBUG: waitpid - stack_index = %d\n", stack_index);
 
 					/* Join the thread to ensure it's completely done */
-					printk("DEBUG: waitpid - calling k_thread_join...\n");
+					//printk("DEBUG: waitpid - calling k_thread_join...\n");
 					k_thread_join(proc->main_thread, K_FOREVER);
-					printk("DEBUG: waitpid - k_thread_join completed\n");
+					//printk("DEBUG: waitpid - k_thread_join completed\n");
 
 					/* Unregister thread from process */
-					printk("DEBUG: waitpid - unregistering thread\n");
+					//printk("DEBUG: waitpid - unregistering thread\n");
 					process_unregister_thread(proc, thread);
 
 					/* Free thread structure (but NOT the stack - it's static) */
-					printk("DEBUG: waitpid - freeing thread\n");
+					//printk("DEBUG: waitpid - freeing thread\n");
 					k_free(thread);
 
 					/* Return stack to pool */
@@ -306,15 +306,15 @@ pid_t waitpid(pid_t pid, int *status, int options)
 						k_mutex_lock(&stack_pool_lock, K_FOREVER);
 						stack_pool_used[stack_index] = false;
 						k_mutex_unlock(&stack_pool_lock);
-						printk("DEBUG: waitpid - returned stack index %d to pool\n", stack_index);
+						//printk("DEBUG: waitpid - returned stack index %d to pool\n", stack_index);
 					}
 
 					/* Clean up process */
-					printk("DEBUG: waitpid - cleaning up process\n");
+					//printk("DEBUG: waitpid - cleaning up process\n");
 					process_exit(proc, msg.exit_code);
 				}
 
-				printk("DEBUG: waitpid - returning %d\n", msg.pid);
+				//printk("DEBUG: waitpid - returning %d\n", msg.pid);
 				return msg.pid;
 			}
 			/* Not our process, put it back */
@@ -371,18 +371,18 @@ int shell_exec_command(const struct shell_cmd *cmd, int argc, char **argv, bool 
 		.result = 0,
 	};
 
-	printk("DEBUG: shell_exec_command - starting for '%s'\n", cmd->name);
+	//printk("DEBUG: shell_exec_command - starting for '%s'\n", cmd->name);
 
 	/* Initialize semaphore for synchronization */
 	k_sem_init(&cdata.copied_sem, 0, 1);
 
 	/* Create new task for command execution */
-	printk("DEBUG: shell_exec_command - calling new_task\n");
+	//printk("DEBUG: shell_exec_command - calling new_task\n");
 	pid_t pid = new_task(cmd->name, run_cmd, &cdata);
-	printk("DEBUG: shell_exec_command - new_task returned PID %d\n", pid);
+	//printk("DEBUG: shell_exec_command - new_task returned PID %d\n", pid);
 	if (pid < 0) {
-		printk("Error: Failed to create task for command '%s': %d\n",
-		       cmd->name, pid);
+	  /*printk("Error: Failed to create task for command '%s': %d\n",
+	    cmd->name, pid);*/
 		return pid;
 	}
 
@@ -391,7 +391,7 @@ int shell_exec_command(const struct shell_cmd *cmd, int argc, char **argv, bool 
 	 */
 	int ret = k_sem_take(&cdata.copied_sem, K_MSEC(1000));
 	if (ret != 0) {
-		printk("ERROR: Timeout waiting for child process %d to copy data\n", pid);
+		//printk("ERROR: Timeout waiting for child process %d to copy data\n", pid);
 		return -ETIMEDOUT;
 	}
 
@@ -402,13 +402,13 @@ int shell_exec_command(const struct shell_cmd *cmd, int argc, char **argv, bool 
 		int status = 0;
 		pid_t wait_result = waitpid(pid, &status, 0);
 		if (wait_result < 0) {
-			printk("Error: waitpid failed: %d\n", wait_result);
+			//printk("Error: waitpid failed: %d\n", wait_result);
 			return wait_result;
 		}
 		return status;
 	} else {
 		/* Background command */
-		printk("[%d] %s &\n", pid, cmd->name);
+		//printk("[%d] %s &\n", pid, cmd->name);
 		return 0;
 	}
 }

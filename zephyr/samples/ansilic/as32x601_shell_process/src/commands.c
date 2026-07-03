@@ -71,16 +71,16 @@ static int cmd_ps(int argc, char **argv)
 	printk("------------------------\n");
 
 	/* Get current process */
-	printk("DEBUG: Calling process_current()...\n");
+	//printk("DEBUG: Calling process_current()...\n");
 	struct z_process *current = process_current();
-	printk("DEBUG: process_current() returned %p\n", current);
+	//printk("DEBUG: process_current() returned %p\n", current);
 
 	if (!current || current->pid == PID_INVALID) {
 		printk("ERROR: Invalid current process\n");
 		return -1;
 	}
 
-	printk("DEBUG: Current process PID = %d\n", current->pid);
+	//printk("DEBUG: Current process PID = %d\n", current->pid);
 
 	/* Print current process */
 	printk("%-6d %-6d %s\n", (int)current->pid, 0, "ps");
@@ -88,7 +88,7 @@ static int cmd_ps(int argc, char **argv)
 	/* Print init process */
 	printk("%-6d %-6d %s\n", (int)PID_INIT, 0, "init");
 
-	printk("DEBUG: cmd_ps about to return\n");
+	//printk("DEBUG: cmd_ps about to return\n");
 	return 0;
 }
 
