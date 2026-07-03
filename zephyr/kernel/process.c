@@ -184,7 +184,26 @@ struct z_process *process_current(void)
 
 	/* Return thread's associated process */
 	if (thread->process) {
-		return thread->process;
+		/* Validate that process pointer is within process_table bounds */
+		uintptr_t proc_addr = (uintptr_t)thread->process;
+		uintptr_t table_start = (uintptr_t)&process_table[0];
+		uintptr_t table_end = (uintptr_t)&process_table[CONFIG_MAX_PROCESS_COUNT];
+
+		if (proc_addr < table_start || proc_addr >= table_end) {
+			/* Pointer outside process table, clear it */
+			thread->process = NULL;
+		} else {
+			/* Pointer is within table, safe to access */
+			/* Validate it's still allocated and matches table entry */
+			size_t index = (proc_addr - table_start) / sizeof(struct z_process);
+			if (index < CONFIG_MAX_PROCESS_COUNT &&
+			    (process_allocated_mask & BIT(index)) &&
+			    thread->process == &process_table[index]) {
+				return thread->process;
+			}
+			/* Process pointer is stale or misaligned, clear it */
+			thread->process = NULL;
+		}
 	}
 
 	/* Fallback to init process if no process assigned */
@@ -204,6 +223,7 @@ void process_exit(struct z_process *proc, int exit_code)
 	/* Remove from parent's child list */
 	if (proc->parent) {
 		sys_dlist_remove(&proc->child_node);
+		proc->parent = NULL;  /* Clear parent pointer */
 	}
 
 	/* Free environment variables */
@@ -223,7 +243,11 @@ void process_exit(struct z_process *proc, int exit_code)
 	/* Clear file descriptor table */
 	memset(&proc->fd_table, 0, sizeof(struct idesc_table));
 
+	/* Free PID */
 	free_pid(proc->pid);
+
+	/* Mark process as invalid */
+	proc->pid = PID_INVALID;
 
 	k_spin_unlock(&process_lock, key);
 }
