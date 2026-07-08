@@ -1,0 +1,4 @@
+tests:
+  kernel.process:
+    tags: kernel process
+    min_ram: 32
