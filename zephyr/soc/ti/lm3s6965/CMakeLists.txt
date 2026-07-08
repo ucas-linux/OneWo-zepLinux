@@ -6,6 +6,7 @@ zephyr_library_sources(
   soc_config.c
   reboot.S
   sys_arch_reboot.c
+  pinctrl_lm3s6965.c
   )
 
 zephyr_library_include_directories(
@@ -14,5 +15,6 @@ zephyr_library_include_directories(
   )
 
 zephyr_include_directories(.)
+zephyr_include_directories(include)
 
 set(SOC_LINKER_SCRIPT ${ZEPHYR_BASE}/include/zephyr/arch/arm/cortex_m/scripts/linker.ld CACHE INTERNAL "")
