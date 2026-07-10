@@ -480,3 +480,187 @@ static int shell_process_init_wrapper(void)
 }
 
 SYS_INIT(shell_process_init_wrapper, APPLICATION, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT);
+
+/* Bytecode VM integration */
+#include "bytecode_vm.h"
+
+/**
+ * @brief Shell command: ls - List available programs
+ */
+static int cmd_ls_exec(int argc, char **argv)
+{
+	printk("Built-in commands:\n");
+	k_mutex_lock(&cmd_registry_lock, K_FOREVER);
+	for (int i = 0; i < command_count; i++) {
+		if (command_registry[i]) {
+			printk("  %-16s  (builtin)\n", command_registry[i]->name);
+		}
+	}
+	k_mutex_unlock(&cmd_registry_lock);
+
+	printk("\n");
+	vm_list_programs();
+
+	return 0;
+}
+
+static const struct shell_cmd cmd_ls = {
+	.name = "ls",
+	.exec = cmd_ls_exec,
+	.brief = "List available programs"
+};
+
+/**
+ * @brief Shell command: upload - Upload bytecode program (simulated)
+ * Usage: upload <name> <program_id>
+ */
+static int cmd_upload_exec(int argc, char **argv)
+{
+	if (argc < 3) {
+		printk("Usage: upload <name> <program_id>\n");
+		printk("Available program_id:\n");
+		printk("  hello    - Hello world program\n");
+		printk("  counter  - Count from 1 to 10\n");
+		printk("  calc     - Simple calculator demo\n");
+		return -EINVAL;
+	}
+
+	const char *name = argv[1];
+	const char *prog_id = argv[2];
+
+	/* Sample bytecode programs (for testing) */
+
+	/* Program: hello - prints "Hello World!" and number 42 */
+	static const uint8_t prog_hello[] = {
+		OP_PRINT_STR, 13, 'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd', '!', '\n',
+		OP_PUSH, 0, 0, 0, 42,    // Push 42
+		OP_PRINT,                // Print it
+		OP_HALT
+	};
+
+	/* Program: counter - counts from 1 to 10 */
+	static const uint8_t prog_counter[] = {
+		// Initialize counter to 1
+		OP_PUSH, 0, 0, 0, 1,     // counter = 1
+
+		// Loop start (PC = 5)
+		OP_DUP,                  // Duplicate counter for comparison
+		OP_PUSH, 0, 0, 0, 11,    // Push 11
+		OP_LT,                   // counter < 11 ?
+		OP_JZ, 0, 0, 0, 33,      // If false, jump to end (PC 33)
+
+		// Loop body
+		OP_DUP,                  // Duplicate counter for printing
+		OP_PRINT,                // Print counter
+		OP_PUSH, 0, 0, 0, 1,     // Push 1
+		OP_ADD,                  // counter++
+		OP_PUSH, 0, 0, 0, 100,   // Push 100ms
+		OP_SLEEP,                // Sleep
+		OP_JMP, 0, 0, 0, 5,      // Jump back to loop start
+
+		// End (PC = 33)
+		OP_POP,                  // Clean up stack
+		OP_HALT
+	};
+
+	/* Program: calc - demonstrates arithmetic (5 + 3) * 2 = 16 */
+	static const uint8_t prog_calc[] = {
+		OP_PRINT_STR, 17, 'C', 'a', 'l', 'c', ':', ' ', '(', '5', '+', '3', ')', '*', '2', ' ', '=', ' ','\n',
+		OP_PUSH, 0, 0, 0, 5,     // Push 5
+		OP_PUSH, 0, 0, 0, 3,     // Push 3
+		OP_ADD,                  // 5 + 3 = 8
+		OP_PUSH, 0, 0, 0, 2,     // Push 2
+		OP_MUL,                  // 8 * 2 = 16
+		OP_PRINT,                // Print result
+		OP_HALT
+	};
+
+	const uint8_t *code = NULL;
+	size_t code_size = 0;
+
+	if (strcmp(prog_id, "hello") == 0) {
+		code = prog_hello;
+		code_size = sizeof(prog_hello);
+	} else if (strcmp(prog_id, "counter") == 0) {
+		code = prog_counter;
+		code_size = sizeof(prog_counter);
+	} else if (strcmp(prog_id, "calc") == 0) {
+		code = prog_calc;
+		code_size = sizeof(prog_calc);
+	} else {
+		printk("Unknown program_id: %s\n", prog_id);
+		return -EINVAL;
+	}
+
+	printk("Uploading program '%s' (%zu bytes)...\n", name, code_size);
+	int ret = vm_load_program(name, code, code_size);
+	if (ret < 0) {
+		printk("Failed to load program: %d\n", ret);
+		return ret;
+	}
+
+	printk("Upload complete. Use 'run %s' to execute.\n", name);
+	return 0;
+}
+
+static const struct shell_cmd cmd_upload = {
+	.name = "upload",
+	.exec = cmd_upload_exec,
+	.brief = "Upload bytecode program"
+};
+
+/**
+ * @brief Shell command: run - Execute bytecode program
+ * Usage: run <name>
+ */
+static int cmd_run_exec(int argc, char **argv)
+{
+	if (argc < 2) {
+		printk("Usage: run <program_name>\n");
+		return -EINVAL;
+	}
+
+	const char *name = argv[1];
+	return vm_execute_program(name, argc - 1, &argv[1]);
+}
+
+static const struct shell_cmd cmd_run = {
+	.name = "run",
+	.exec = cmd_run_exec,
+	.brief = "Execute bytecode program"
+};
+
+/**
+ * @brief Shell command: rm - Delete bytecode program
+ * Usage: rm <name>
+ */
+static int cmd_rm_exec(int argc, char **argv)
+{
+	if (argc < 2) {
+		printk("Usage: rm <program_name>\n");
+		return -EINVAL;
+	}
+
+	const char *name = argv[1];
+	return vm_delete_program(name);
+}
+
+static const struct shell_cmd cmd_rm = {
+	.name = "rm",
+	.exec = cmd_rm_exec,
+	.brief = "Delete bytecode program"
+};
+
+/**
+ * @brief Register bytecode commands
+ */
+static int register_bytecode_commands(void)
+{
+	shell_cmd_register(&cmd_ls);
+	shell_cmd_register(&cmd_upload);
+	shell_cmd_register(&cmd_run);
+	shell_cmd_register(&cmd_rm);
+	return 0;
+}
+
+SYS_INIT(register_bytecode_commands, APPLICATION, 99);

@@ -10,4 +10,5 @@ target_sources(app PRIVATE
     src/shell_process.c
     src/commands.c
     src/debug.c
+    src/bytecode_vm.c
 )

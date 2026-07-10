@@ -8,4 +8,5 @@ project(qemu_process_test)
 target_sources(app PRIVATE
     src/main.c
     src/shell_process.c
+    src/bytecode_vm.c
 )
