@@ -130,6 +130,53 @@ SHELL_CMD_ARG_REGISTER(spawn, NULL, "Spawn a test process", shell_spawn_handler,
 SHELL_CMD_ARG_REGISTER(ps, NULL, "List processes", shell_ps_handler, 1, 0);
 SHELL_CMD_ARG_REGISTER(test, NULL, "Test command", shell_test_handler, 1, 0);
 
+/* Bytecode VM shell handlers */
+static int shell_ls_handler(const struct shell *sh, size_t argc, char **argv)
+{
+	const struct shell_cmd *cmd = shell_cmd_lookup("ls");
+	if (!cmd) {
+		shell_error(sh, "Command not found");
+		return -1;
+	}
+	return shell_exec_command(cmd, argc, argv, true);
+}
+
+static int shell_upload_handler(const struct shell *sh, size_t argc, char **argv)
+{
+	const struct shell_cmd *cmd = shell_cmd_lookup("upload");
+	if (!cmd) {
+		shell_error(sh, "Command not found");
+		return -1;
+	}
+	return shell_exec_command(cmd, argc, argv, true);
+}
+
+static int shell_run_handler(const struct shell *sh, size_t argc, char **argv)
+{
+	const struct shell_cmd *cmd = shell_cmd_lookup("run");
+	if (!cmd) {
+		shell_error(sh, "Command not found");
+		return -1;
+	}
+	return shell_exec_command(cmd, argc, argv, true);
+}
+
+static int shell_rm_handler(const struct shell *sh, size_t argc, char **argv)
+{
+	const struct shell_cmd *cmd = shell_cmd_lookup("rm");
+	if (!cmd) {
+		shell_error(sh, "Command not found");
+		return -1;
+	}
+	return shell_exec_command(cmd, argc, argv, true);
+}
+
+/* Register bytecode VM shell commands */
+SHELL_CMD_ARG_REGISTER(ls, NULL, "List available programs", shell_ls_handler, 1, 0);
+SHELL_CMD_ARG_REGISTER(upload, NULL, "Upload bytecode program", shell_upload_handler, 3, 0);
+SHELL_CMD_ARG_REGISTER(run, NULL, "Execute bytecode program", shell_run_handler, 2, 0);
+SHELL_CMD_ARG_REGISTER(rm, NULL, "Delete bytecode program", shell_rm_handler, 2, 0);
+
 /* Register custom commands */
 static struct shell_cmd cmd_spawn = {
 	.name = "spawn",

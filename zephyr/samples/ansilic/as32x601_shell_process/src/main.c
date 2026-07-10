@@ -170,6 +170,82 @@ static int shell_help_handler(const struct shell *sh, size_t argc, char **argv)
 	return ret;
 }
 
+/**
+ * @brief Shell command handler - ls (bytecode VM)
+ */
+static int shell_ls_handler(const struct shell *sh, size_t argc, char **argv)
+{
+	const struct shell_cmd *cmd = shell_cmd_lookup("ls");
+	if (!cmd) {
+		shell_error(sh, "Command not found");
+		return -ENOENT;
+	}
+
+	int ret = shell_exec_command(cmd, argc, argv, true);
+	if (ret != 0) {
+		shell_error(sh, "Command failed with code %d", ret);
+	}
+
+	return ret;
+}
+
+/**
+ * @brief Shell command handler - upload (bytecode VM)
+ */
+static int shell_upload_handler(const struct shell *sh, size_t argc, char **argv)
+{
+	const struct shell_cmd *cmd = shell_cmd_lookup("upload");
+	if (!cmd) {
+		shell_error(sh, "Command not found");
+		return -ENOENT;
+	}
+
+	int ret = shell_exec_command(cmd, argc, argv, true);
+	if (ret != 0) {
+		shell_error(sh, "Command failed with code %d", ret);
+	}
+
+	return ret;
+}
+
+/**
+ * @brief Shell command handler - run (bytecode VM)
+ */
+static int shell_run_handler(const struct shell *sh, size_t argc, char **argv)
+{
+	const struct shell_cmd *cmd = shell_cmd_lookup("run");
+	if (!cmd) {
+		shell_error(sh, "Command not found");
+		return -ENOENT;
+	}
+
+	int ret = shell_exec_command(cmd, argc, argv, true);
+	if (ret != 0) {
+		shell_error(sh, "Command failed with code %d", ret);
+	}
+
+	return ret;
+}
+
+/**
+ * @brief Shell command handler - rm (bytecode VM)
+ */
+static int shell_rm_handler(const struct shell *sh, size_t argc, char **argv)
+{
+	const struct shell_cmd *cmd = shell_cmd_lookup("rm");
+	if (!cmd) {
+		shell_error(sh, "Command not found");
+		return -ENOENT;
+	}
+
+	int ret = shell_exec_command(cmd, argc, argv, true);
+	if (ret != 0) {
+		shell_error(sh, "Command failed with code %d", ret);
+	}
+
+	return ret;
+}
+
 /* Register shell commands - these bridge to our process-based execution */
 SHELL_CMD_ARG_REGISTER(hello, NULL, "Print hello message (runs in new process)",
                        shell_hello_handler, 1, 10);
@@ -187,6 +263,16 @@ SHELL_CMD_ARG_REGISTER(test, NULL, "Process creation test (runs in new process)"
                        shell_test_handler, 1, 0);
 SHELL_CMD_ARG_REGISTER(prochelp, NULL, "Show process commands (runs in new process)",
                        shell_help_handler, 1, 0);
+
+/* Bytecode VM shell commands */
+SHELL_CMD_ARG_REGISTER(ls, NULL, "List programs and commands",
+                       shell_ls_handler, 1, 0);
+SHELL_CMD_ARG_REGISTER(upload, NULL, "Upload bytecode program",
+                       shell_upload_handler, 3, 0);
+SHELL_CMD_ARG_REGISTER(run, NULL, "Execute bytecode program",
+                       shell_run_handler, 2, 0);
+SHELL_CMD_ARG_REGISTER(rm, NULL, "Delete bytecode program",
+                       shell_rm_handler, 2, 0);
 
 /**
  * @brief Main application entry point
