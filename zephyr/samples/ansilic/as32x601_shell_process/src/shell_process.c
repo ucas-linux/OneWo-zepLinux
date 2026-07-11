@@ -9,9 +9,11 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/kernel/process.h>
+#include <zephyr/console/console.h>
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "shell_process.h"
 
 #define MAX_COMMANDS 32
@@ -652,12 +654,162 @@ static const struct shell_cmd cmd_rm = {
 };
 
 /**
+ * @brief Helper: Parse hex digit
+ */
+static int hex_to_nibble(char c)
+{
+	if (c >= '0' && c <= '9') return c - '0';
+	if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+	if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+	return -1;
+}
+
+/**
+ * @brief Helper: Parse hex byte
+ */
+static int parse_hex_byte(const char *str)
+{
+	int high = hex_to_nibble(str[0]);
+	int low = hex_to_nibble(str[1]);
+
+	if (high < 0 || low < 0) {
+		return -1;
+	}
+
+	return (high << 4) | low;
+}
+
+/**
+ * @brief Shell command: upload_hex - Upload bytecode from hex string
+ * Usage: upload_hex <name> <hex_string>
+ *
+ * Example: upload_hex test "01 00 00 00 2A 40 FF"
+ * This uploads a program that pushes 42, prints it, and halts.
+ */
+static int cmd_upload_hex_exec(int argc, char **argv)
+{
+	if (argc < 3) {
+		printk("Usage: upload_hex <name> <hex_string>\n");
+		printk("\n");
+		printk("Upload bytecode from a hex string.\n");
+		printk("Hex bytes should be space-separated.\n");
+		printk("\n");
+		printk("Example:\n");
+		printk("  upload_hex test \"01 00 00 00 2A 40 FF\"\n");
+		printk("\n");
+		printk("This creates a program that:\n");
+		printk("  01 00 00 00 2A  - PUSH 42\n");
+		printk("  40              - PRINT\n");
+		printk("  FF              - HALT\n");
+		printk("\n");
+		printk("Instruction reference:\n");
+		printk("  01 <4-byte val> - PUSH value\n");
+		printk("  02              - POP\n");
+		printk("  03              - DUP\n");
+		printk("  10              - ADD\n");
+		printk("  11              - SUB\n");
+		printk("  12              - MUL\n");
+		printk("  13              - DIV\n");
+		printk("  40              - PRINT (print top of stack)\n");
+		printk("  41 <len> <str>  - PRINT_STR\n");
+		printk("  42              - SLEEP (ms from stack)\n");
+		printk("  FF              - HALT\n");
+		return -EINVAL;
+	}
+
+	const char *name = argv[1];
+	const char *hex_str = argv[2];
+
+	/* Count expected bytes (rough estimate) */
+	int hex_len = strlen(hex_str);
+	int max_bytes = (hex_len / 2) + 1;
+
+	if (max_bytes > VM_MAX_PROGRAM_SIZE) {
+		printk("Hex string too long (max %d bytes)\n", VM_MAX_PROGRAM_SIZE);
+		return -EINVAL;
+	}
+
+	/* Allocate buffer for bytecode */
+	uint8_t *bytecode = k_malloc(max_bytes);
+	if (!bytecode) {
+		printk("Failed to allocate memory for bytecode\n");
+		return -ENOMEM;
+	}
+
+	/* Parse hex string */
+	const char *ptr = hex_str;
+	int byte_count = 0;
+
+	while (*ptr != '\0' && byte_count < max_bytes) {
+		/* Skip whitespace */
+		while (*ptr == ' ' || *ptr == '\t' || *ptr == '\r' || *ptr == '\n') {
+			ptr++;
+		}
+
+		if (*ptr == '\0') {
+			break;
+		}
+
+		/* Need at least 2 hex digits */
+		if (!ptr[1]) {
+			printk("ERROR: Incomplete hex byte at position %d\n",
+			       (int)(ptr - hex_str));
+			k_free(bytecode);
+			return -EINVAL;
+		}
+
+		/* Parse hex byte */
+		int byte_val = parse_hex_byte(ptr);
+		if (byte_val < 0) {
+			printk("ERROR: Invalid hex byte at position %d: '%c%c'\n",
+			       (int)(ptr - hex_str), ptr[0], ptr[1]);
+			k_free(bytecode);
+			return -EINVAL;
+		}
+
+		bytecode[byte_count++] = (uint8_t)byte_val;
+		ptr += 2;
+	}
+
+	if (byte_count == 0) {
+		printk("ERROR: No bytecode parsed\n");
+		k_free(bytecode);
+		return -EINVAL;
+	}
+
+	printk("Parsed %d bytes from hex string\n", byte_count);
+
+	/* Load program into VM */
+	int ret = vm_load_program(name, bytecode, byte_count);
+
+	/* Free temporary buffer */
+	k_free(bytecode);
+
+	if (ret < 0) {
+		printk("Failed to load program: %d\n", ret);
+		return ret;
+	}
+
+	printk("Program '%s' loaded successfully!\n", name);
+	printk("Use 'run %s' to execute.\n", name);
+
+	return 0;
+}
+
+static const struct shell_cmd cmd_upload_hex = {
+	.name = "upload_hex",
+	.exec = cmd_upload_hex_exec,
+	.brief = "Upload bytecode from hex string"
+};
+
+/**
  * @brief Register bytecode commands
  */
 static int register_bytecode_commands(void)
 {
 	shell_cmd_register(&cmd_ls);
 	shell_cmd_register(&cmd_upload);
+	shell_cmd_register(&cmd_upload_hex);
 	shell_cmd_register(&cmd_run);
 	shell_cmd_register(&cmd_rm);
 	return 0;

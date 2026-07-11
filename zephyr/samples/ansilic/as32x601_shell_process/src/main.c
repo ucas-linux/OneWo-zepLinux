@@ -209,6 +209,25 @@ static int shell_upload_handler(const struct shell *sh, size_t argc, char **argv
 }
 
 /**
+ * @brief Shell command handler - upload_hex (bytecode VM)
+ */
+static int shell_upload_hex_handler(const struct shell *sh, size_t argc, char **argv)
+{
+	const struct shell_cmd *cmd = shell_cmd_lookup("upload_hex");
+	if (!cmd) {
+		shell_error(sh, "Command not found");
+		return -ENOENT;
+	}
+
+	int ret = shell_exec_command(cmd, argc, argv, true);
+	if (ret != 0) {
+		shell_error(sh, "Command failed with code %d", ret);
+	}
+
+	return ret;
+}
+
+/**
  * @brief Shell command handler - run (bytecode VM)
  */
 static int shell_run_handler(const struct shell *sh, size_t argc, char **argv)
@@ -269,6 +288,8 @@ SHELL_CMD_ARG_REGISTER(ls, NULL, "List programs and commands",
                        shell_ls_handler, 1, 0);
 SHELL_CMD_ARG_REGISTER(upload, NULL, "Upload bytecode program",
                        shell_upload_handler, 3, 0);
+SHELL_CMD_ARG_REGISTER(upload_hex, NULL, "Upload bytecode from hex string",
+                       shell_upload_hex_handler, 3, 0);
 SHELL_CMD_ARG_REGISTER(run, NULL, "Execute bytecode program",
                        shell_run_handler, 2, 0);
 SHELL_CMD_ARG_REGISTER(rm, NULL, "Delete bytecode program",
