@@ -182,7 +182,6 @@ int anl_load(const char *name, const uint8_t *buf, size_t len)
     void (*fn)(void) = (void (*)(void))(entry | 1);
     fn();
 
-    /* Note: mem is intentionally not freed here because spawned child
-     * threads may still be executing code from this module. */
+    k_free(mem);
     return 0;
 }
