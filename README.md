@@ -2,6 +2,47 @@
 
 Implementing a Linux-compatible interface layer on Zephyr RTOS, enabling Linux applications to run on ARM Cortex-M4 and ANSILIC RISC-V 32 microcontrollers with minimal modifications.
 
+## Latest Release: v0.5
+
+**OneWo zepLinux v0.5** was released on **July 14, 2026**. This release focuses on AS32X601 serial dynamic upload, automatic PC-side upload, and the Linux-style process model. The v0.5 release content corresponds to commit `2184fc64` on the `main` branch, and all related functional code has been merged.
+
+### Serial Dynamic Upload and PC Upload Tools
+
+Release contents:
+
+- Completed the bytecode program workflow for serial upload, parsing, storage, lookup, execution, and deletion.
+- Added a PC-side Python script for automatic upload and the accompanying example programs.
+- Added documentation for the upload tools and bytecode instructions.
+- Added bytecode example programs.
+
+Test validation:
+
+- The `upload_hex` command correctly parses and loads hexadecimal bytecode.
+- Invalid characters, incomplete bytes, empty programs, and oversized programs are detected and rejected.
+- The PC-side script automatically uploads `.bin` files and displays the loader result.
+- Uploaded programs can be managed normally through the `ls`, `run`, and `rm` commands.
+
+### Linux-Style Process Model
+
+Release contents:
+
+- Integrated an MCU-oriented Embox-style process model into the Zephyr kernel.
+- Added process creation, PID allocation and lookup, parent-child relationships, process exit, resource cleanup, and process fork support.
+- Added per-process file descriptor tables with fixed-size allocation, descriptor lookup/removal, and `CLOEXEC` support.
+- Added per-process environment variables with lookup, update, fork-time deep copy, and automatic cleanup on exit.
+- Added process-thread association, including current-process lookup and thread registration/unregistration.
+- Added automatic initialization of the PID 1 init process and integrated `getpid()` with the actual current process.
+- Fixed process and thread stack allocation and cleanup issues.
+
+Test validation:
+
+- Verified process creation and PID allocation.
+- Verified parent-child process relationships.
+- Verified file descriptor table operations and environment-variable management.
+- Verified process fork and resource-copy behavior.
+- Verified POSIX `getpid()` integration.
+- Verified the AS32X601 process model sample and process-management commands, including `ps`, `getpid`, `info`, and `kill`.
+
 ## Core Highlights
 
 - 4 Linux-style schedulers (DL/RT/CFS/Idle) deeply integrated into the Zephyr kernel, truly driving `k_thread` scheduling decisions
