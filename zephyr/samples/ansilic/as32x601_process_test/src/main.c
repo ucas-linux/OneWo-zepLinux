@@ -84,6 +84,7 @@ ZTEST(process_as32x601, test_fd_table)
 	void *retrieved;
 
 	printk("Testing file descriptor table...\n");
+	printk("Origin Zephyr\n");
 
 	/* 创建进程 */
 	proc = process_create(NULL);
