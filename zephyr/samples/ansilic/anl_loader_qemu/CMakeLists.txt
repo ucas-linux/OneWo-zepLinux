@@ -2,4 +2,4 @@
 cmake_minimum_required(VERSION 3.20.0)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(anl_loader_qemu)
-target_sources(app PRIVATE src/main.c src/anl_loader.c)
+target_sources(app PRIVATE src/main.c src/anl_loader.c src/shell_process.c)
