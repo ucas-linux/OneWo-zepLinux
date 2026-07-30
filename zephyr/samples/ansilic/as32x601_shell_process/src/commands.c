@@ -402,6 +402,78 @@ static int cmd_stress(int argc, char **argv)
 }
 
 /**
+ * @brief Fork command - spawn child processes (like QEMU fork demo)
+ * Usage: fork [nchildren] [iterations]
+ */
+struct fork_arg {
+	int id;
+	int iterations;
+};
+
+static void *fork_child_main(void *arg)
+{
+	struct fork_arg *fa = (struct fork_arg *)arg;
+	int id = fa->id;
+	int iters = fa->iterations;
+
+	printk("[child %d] started, PID=%d, parent PID=%d\n",
+	       id,
+	       process_current()->pid,
+	       process_current()->parent ? process_current()->parent->pid : 0);
+
+	for (int i = 0; i < iters; i++) {
+		printk("[child %d] iteration %d/%d\n", id, i + 1, iters);
+		k_msleep(500);
+	}
+
+	printk("[child %d] done\n", id);
+	return (void *)(intptr_t)id;
+}
+
+static int cmd_fork(int argc, char **argv)
+{
+	int nchildren = 1;
+	int iterations = 3;
+
+	if (argc >= 2) nchildren = atoi(argv[1]);
+	if (argc >= 3) iterations = atoi(argv[2]);
+
+	if (nchildren < 1 || nchildren > 4) {
+		printk("usage: fork <nchildren 1-4> [iterations]\n");
+		return -EINVAL;
+	}
+
+	printk("[parent] PID=%d, forking %d child(ren), %d iterations each\n",
+	       process_current()->pid, nchildren, iterations);
+
+	static struct fork_arg fork_args[4];
+	pid_t pids[4];
+
+	for (int i = 0; i < nchildren; i++) {
+		fork_args[i].id = i + 1;
+		fork_args[i].iterations = iterations;
+		char name[16];
+		snprintf(name, sizeof(name), "child_%d", i + 1);
+		pids[i] = new_task(name, fork_child_main, &fork_args[i]);
+		if (pids[i] < 0) {
+			printk("[parent] failed to fork child %d: %d\n", i + 1, pids[i]);
+		} else {
+			printk("[parent] forked child %d with PID=%d\n", i + 1, pids[i]);
+		}
+	}
+
+	for (int i = 0; i < nchildren; i++) {
+		if (pids[i] < 0) continue;
+		int status = 0;
+		pid_t ret = waitpid(pids[i], &status, 0);
+		printk("[parent] child PID=%d exited with status=%d\n", ret, status);
+	}
+
+	printk("[parent] all children done\n");
+	return 0;
+}
+
+/**
  * @brief Help command - list available commands
  */
 static int cmd_help(int argc, char **argv)
@@ -427,6 +499,7 @@ static int cmd_help(int argc, char **argv)
 	printk("  reboot     - Reboot the system\n");
 	printk("  upload_hex - Upload ANL binary via hex string\n");
 	printk("  load       - Load ANL binary (alias for upload_hex)\n");
+	printk("  fork       - Fork child processes\n");
 
 	return 0;
 }
@@ -529,3 +602,4 @@ SHELL_CMD_REGISTER(reboot, "Reboot the system", cmd_reboot);
 SHELL_CMD_REGISTER(help, "Show available commands", cmd_help);
 SHELL_CMD_REGISTER(upload_hex, "Upload ANL binary via hex", cmd_upload_hex);
 SHELL_CMD_REGISTER(load, "Load ANL binary", cmd_load);
+SHELL_CMD_REGISTER(fork, "Fork child processes", cmd_fork);

@@ -143,27 +143,33 @@ int anl_load(const char *name, const uint8_t *buf, size_t len)
                 S = sec_base[sym->st_shndx] + sym->st_value;
             }
 
-            /* Patch location is relative to CODE section */
-            uint32_t *patch = (uint32_t *)(code_base + relas[r].r_offset);
+            /* Patch location is relative to CODE section —
+             * RV32C compressed instructions mean 32-bit insns can sit at
+             * 2-byte aligned addresses, so use memcpy for all access. */
+            uint8_t *patch_ptr = (uint8_t *)(code_base + relas[r].r_offset);
             int32_t   A     = relas[r].r_addend;
-            uintptr_t P     = (uintptr_t)patch;
+            uintptr_t P     = (uintptr_t)patch_ptr;
 
             printk("  rela[%u] type=%u sym=%u S=0x%08x P=0x%08x A=%d\n",
                    r, r_type, sym_idx, (unsigned)S, (unsigned)P, A);
 
-            uint32_t orig = *patch;
+            uint32_t orig;
+            memcpy(&orig, patch_ptr, 4);
+
+            uint32_t val = orig;
             switch (r_type) {
             case R_ANL_32:
             case R_ANL_ABS32:
-                *patch = (uint32_t)(S + A);
+                val = (uint32_t)(S + A);
+                memcpy(patch_ptr, &val, 4);
                 break;
             case R_ANL_PC32:
-                *patch = (uint32_t)(S + A - P);
+                val = (uint32_t)(S + A - P);
+                memcpy(patch_ptr, &val, 4);
                 break;
             case R_ANL_THM_CALL: {
                 /* ARM Thumb BL: encode 26-bit offset into two 16-bit halfwords */
                 int32_t offset = (int32_t)(S + A - P - 4);
-                uint16_t *hw = (uint16_t *)patch;
                 uint32_t s  = (offset >> 24) & 1;
                 uint32_t i1 = (offset >> 23) & 1;
                 uint32_t i2 = (offset >> 22) & 1;
@@ -171,54 +177,59 @@ int anl_load(const char *name, const uint8_t *buf, size_t len)
                 uint32_t j2 = (~(i2 ^ s)) & 1;
                 uint32_t imm10 = (offset >> 12) & 0x3FF;
                 uint32_t imm11 = (offset >> 1)  & 0x7FF;
-                hw[0] = (uint16_t)(0xF000 | (s << 10) | imm10);
-                hw[1] = (uint16_t)(0xF800 | (j1 << 13) | (j2 << 11) | imm11);
+                uint16_t hw0 = (uint16_t)(0xF000 | (s << 10) | imm10);
+                uint16_t hw1 = (uint16_t)(0xF800 | (j1 << 13) | (j2 << 11) | imm11);
+                memcpy(patch_ptr, &hw0, 2);
+                memcpy(patch_ptr + 2, &hw1, 2);
                 break;
             }
             case R_ANL_HI20: {
                 /* RISC-V LUI: upper 20 bits in [31:12] */
                 uint32_t hi = (uint32_t)((S + A + 0x800) >> 12) & 0xFFFFF;
-                *patch = (*patch & 0xFFF) | (hi << 12);
+                val = (orig & 0xFFF) | (hi << 12);
+                memcpy(patch_ptr, &val, 4);
                 break;
             }
             case R_ANL_LO12_I: {
                 /* RISC-V I-type: 12-bit signed immediate in [31:20] */
                 uint32_t lo = (uint32_t)(S + A) & 0xFFF;
-                *patch = (*patch & 0x000FFFFF) | (lo << 20);
+                val = (orig & 0x000FFFFF) | (lo << 20);
+                memcpy(patch_ptr, &val, 4);
                 break;
             }
             case R_ANL_CALL: {
-                /* RISC-V CALL: AUIPC + JALR pair
-                 * Offset 0: AUIPC rd, %pcrel_hi(symbol)
-                 * Offset 4: JALR rd, %pcrel_lo(symbol)(rd)
-                 */
+                /* RISC-V CALL: AUIPC + JALR pair */
                 int32_t offset = (int32_t)(S + A - P);
-
-                /* Split into high 20 bits and low 12 bits */
-                int32_t hi = (offset + 0x800) >> 12;  /* Add 0x800 for rounding */
+                int32_t hi = (offset + 0x800) >> 12;
                 int32_t lo = offset & 0xFFF;
 
-                /* Patch AUIPC instruction at patch[0] */
-                uint32_t *auipc = patch;
-                uint32_t orig_auipc = *auipc;
-                *auipc = (*auipc & 0xFFF) | ((hi & 0xFFFFF) << 12);
+                /* Patch AUIPC */
+                uint32_t auipc;
+                memcpy(&auipc, patch_ptr, 4);
+                uint32_t orig_auipc = auipc;
+                auipc = (auipc & 0xFFF) | ((hi & 0xFFFFF) << 12);
+                memcpy(patch_ptr, &auipc, 4);
 
-                /* Patch JALR instruction at patch[1] */
-                uint32_t *jalr = patch + 1;
-                uint32_t orig_jalr = *jalr;
-                *jalr = (*jalr & 0x000FFFFF) | ((lo & 0xFFF) << 20);
+                /* Patch JALR */
+                uint32_t jalr;
+                memcpy(&jalr, patch_ptr + 4, 4);
+                uint32_t orig_jalr = jalr;
+                jalr = (jalr & 0x000FFFFF) | ((lo & 0xFFF) << 20);
+                memcpy(patch_ptr + 4, &jalr, 4);
 
                 printk("    CALL: offset=0x%x hi=0x%x lo=0x%x\n", offset, hi, lo);
-                printk("    auipc: 0x%08x -> 0x%08x\n", orig_auipc, *auipc);
-                printk("    jalr:  0x%08x -> 0x%08x\n", orig_jalr, *jalr);
-
+                printk("    auipc: 0x%08x -> 0x%08x\n", orig_auipc, auipc);
+                printk("    jalr:  0x%08x -> 0x%08x\n", orig_jalr, jalr);
                 break;
             }
             default:
                 printk("anl_load[%s]: unknown reloc type %d\n", name, r_type);
                 break;
             }
-            printk("    patched: 0x%08x -> 0x%08x\n", orig, *patch);
+
+            uint32_t patched;
+            memcpy(&patched, patch_ptr, 4);
+            printk("    patched: 0x%08x -> 0x%08x\n", orig, patched);
         }
     }
 
