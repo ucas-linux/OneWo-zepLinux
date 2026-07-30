@@ -40,6 +40,12 @@ RISCV_RELOC_MAP = {
     27: R_ANL_LO12_I,   # R_RISCV_LO12_I
 }
 
+# Relocations that are safe to silently ignore
+RISCV_RELOC_IGNORE = {
+    16,  # R_RISCV_BRANCH — intra-section conditional branch, already resolved
+    51,  # R_RISCV_RELAX  — linker relaxation hint, not applicable to us
+}
+
 FHDR_FMT  = '<IBBHIHHII II'  # 32 bytes
 SHDR_FMT  = '<HHIIIII'       # 24 bytes: 2+2+4+4+4+4+4 = 24
 SYM_FMT   = '<IIIBBB B'      # 16 bytes
@@ -172,6 +178,10 @@ def main():
             base_offset = elf_sec_offset.get(linked_text_idx, 0)
             for rel in sec.iter_relocations():
                 r_type = rel['r_info_type']
+                # Skip known-safe relocations (RELAX, BRANCH, etc.)
+                ignore_set = RISCV_RELOC_IGNORE if arch == ANL_ARCH_RV32I else set()
+                if r_type in ignore_set:
+                    continue
                 anl_type = reloc_map.get(r_type)
                 if anl_type is None:
                     print(f"Warning: unsupported relocation type {r_type}", file=sys.stderr)
