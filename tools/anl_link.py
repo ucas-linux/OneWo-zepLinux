@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""anl_link.py: ARM ELF .o -> .anl (ANsiLic binary format, Thumb2)"""
+"""anl_link.py: ELF .o -> .anl (ANsiLic binary format, RV32I & Thumb2)"""
 import sys, struct, zlib, argparse
 from elftools.elf.elffile import ELFFile
 from elftools.elf.relocation import RelocationSection
@@ -7,6 +7,7 @@ from elftools.elf.sections import SymbolTableSection
 
 ANL_MAGIC       = 0x4C4E417F
 ANL_VERSION     = 1
+ANL_ARCH_RV32I  = 1
 ANL_ARCH_THUMB2 = 2
 ANL_F_PIC       = 1 << 0
 ANL_F_DYNAMIC   = 1 << 1
@@ -17,6 +18,7 @@ SHT_SYMTAB=5; SHT_STRTAB=6; SHT_RELA=7; SHT_DYNSYM=8; SHT_DYNSTR=9
 SHF_EXEC=1; SHF_WRITE=2; SHF_ALLOC=4
 
 R_ANL_32=1; R_ANL_PC32=2; R_ANL_THM_CALL=3; R_ANL_ABS32=4
+R_ANL_HI20=5; R_ANL_LO12_I=6; R_ANL_CALL=7
 
 # ARM reloc -> ANL reloc
 ARM_RELOC_MAP = {
@@ -24,6 +26,18 @@ ARM_RELOC_MAP = {
     3:  R_ANL_PC32,     # R_ARM_REL32
     10: R_ANL_THM_CALL, # R_ARM_THM_CALL
     28: R_ANL_THM_CALL, # R_ARM_THM_JUMP24
+}
+
+# RISC-V reloc -> ANL reloc
+RISCV_RELOC_MAP = {
+    1:  R_ANL_32,       # R_RISCV_32
+    2:  R_ANL_PC32,     # R_RISCV_64 (treat as 32 for RV32)
+    4:  R_ANL_CALL,     # R_RISCV_JAL
+    18: R_ANL_CALL,     # R_RISCV_CALL
+    23: R_ANL_HI20,     # R_RISCV_PCREL_HI20
+    24: R_ANL_LO12_I,   # R_RISCV_PCREL_LO12_I
+    26: R_ANL_HI20,     # R_RISCV_HI20
+    27: R_ANL_LO12_I,   # R_RISCV_LO12_I
 }
 
 FHDR_FMT  = '<IBBHIHHII II'  # 32 bytes
@@ -55,6 +69,20 @@ def main():
 
     with open(args.input, 'rb') as f:
         elf = ELFFile(f)
+
+        # Detect architecture
+        machine = elf.header['e_machine']
+        if machine == 'EM_RISCV':
+            arch = ANL_ARCH_RV32I
+            reloc_map = RISCV_RELOC_MAP
+            print(f"Detected RISC-V architecture")
+        elif machine == 'EM_ARM':
+            arch = ANL_ARCH_THUMB2
+            reloc_map = ARM_RELOC_MAP
+            print(f"Detected ARM architecture")
+        else:
+            print(f"ERROR: Unsupported architecture {machine}", file=sys.stderr)
+            sys.exit(1)
 
         # Collect ELF sections
         elf_secs = {s.name: s for s in elf.iter_sections()}
@@ -116,7 +144,8 @@ def main():
             bind  = {'STB_LOCAL':0,'STB_GLOBAL':1,'STB_WEAK':2}.get(sym['st_info']['bind'],0)
             anl_syms.append(pack_sym(name_off, sym['st_value'], sym['st_size'], stype, bind, anl_shndx))
             if sym.name == args.entry:
-                entry_off = sym['st_value'] & ~1  # strip Thumb bit
+                # For ARM Thumb, strip Thumb bit; for RISC-V, use as-is
+                entry_off = sym['st_value'] & ~1 if arch == ANL_ARCH_THUMB2 else sym['st_value']
 
         symtab_data = b''.join(anl_syms)
 
@@ -143,8 +172,9 @@ def main():
             base_offset = elf_sec_offset.get(linked_text_idx, 0)
             for rel in sec.iter_relocations():
                 r_type = rel['r_info_type']
-                anl_type = ARM_RELOC_MAP.get(r_type)
+                anl_type = reloc_map.get(r_type)
                 if anl_type is None:
+                    print(f"Warning: unsupported relocation type {r_type}", file=sys.stderr)
                     continue
                 sym_idx = rel['r_info_sym']
                 # For REL (not RELA), read implicit addend from the patch location in code_data
@@ -206,7 +236,7 @@ def main():
         flags |= ANL_F_DYNAMIC
 
     # Build file
-    fhdr = pack_fhdr(ANL_MAGIC, ANL_VERSION, ANL_ARCH_THUMB2, flags,
+    fhdr = pack_fhdr(ANL_MAGIC, ANL_VERSION, arch, flags,
                      entry_off, shnum, sh_sz, file_size, 0, symtab_idx, dynsym_idx)
 
     sh_bytes = b''
