@@ -11,4 +11,5 @@ target_sources(app PRIVATE
     src/commands.c
     src/debug.c
     src/bytecode_vm.c
+    src/anl_loader.c
 )
