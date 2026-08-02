@@ -234,7 +234,7 @@ static int cmd_clear(int argc, char **argv)
  */
 static int cmd_version(int argc, char **argv)
 {
-	printk("Zephyr RTOS Shell\n");
+	printk("OneWo-zepLinux\n");
 	printk("Kernel version: %s\n", KERNEL_VERSION_STRING);
 	printk("Board: as32x601_evb\n");
 	printk("Architecture: RISC-V\n");

@@ -265,6 +265,33 @@ static int shell_rm_handler(const struct shell *sh, size_t argc, char **argv)
 	return ret;
 }
 
+/* Generic handler macro to reduce boilerplate */
+#define DEFINE_SHELL_HANDLER(_handler_name, _cmd_name) \
+static int _handler_name(const struct shell *sh, size_t argc, char **argv) \
+{ \
+	const struct shell_cmd *cmd = shell_cmd_lookup(_cmd_name); \
+	if (!cmd) { \
+		shell_error(sh, "Command not found"); \
+		return -ENOENT; \
+	} \
+	int ret = shell_exec_command(cmd, argc, argv, true); \
+	if (ret != 0 && ret != -EINVAL) { \
+		shell_error(sh, "Command failed with code %d", ret); \
+	} \
+	return ret; \
+}
+
+DEFINE_SHELL_HANDLER(shell_uptime_handler, "uptime")
+DEFINE_SHELL_HANDLER(shell_mem_handler, "mem")
+DEFINE_SHELL_HANDLER(shell_free_handler, "free")
+DEFINE_SHELL_HANDLER(shell_clear_handler, "clear")
+DEFINE_SHELL_HANDLER(shell_version_handler, "version")
+DEFINE_SHELL_HANDLER(shell_date_handler, "date")
+DEFINE_SHELL_HANDLER(shell_kill_handler, "kill")
+DEFINE_SHELL_HANDLER(shell_benchmark_handler, "benchmark")
+DEFINE_SHELL_HANDLER(shell_stress_handler, "stress")
+DEFINE_SHELL_HANDLER(shell_reboot_handler, "reboot")
+
 /* Register shell commands - these bridge to our process-based execution */
 SHELL_CMD_ARG_REGISTER(hello, NULL, "Print hello message (runs in new process)",
                        shell_hello_handler, 1, 10);
@@ -282,6 +309,26 @@ SHELL_CMD_ARG_REGISTER(test, NULL, "Process creation test (runs in new process)"
                        shell_test_handler, 1, 0);
 SHELL_CMD_ARG_REGISTER(prochelp, NULL, "Show process commands (runs in new process)",
                        shell_help_handler, 1, 0);
+SHELL_CMD_ARG_REGISTER(uptime, NULL, "Show system uptime",
+                       shell_uptime_handler, 1, 0);
+SHELL_CMD_ARG_REGISTER(mem, NULL, "Show memory information",
+                       shell_mem_handler, 1, 0);
+SHELL_CMD_ARG_REGISTER(free, NULL, "Show free memory",
+                       shell_free_handler, 1, 0);
+SHELL_CMD_ARG_REGISTER(clear, NULL, "Clear screen",
+                       shell_clear_handler, 1, 0);
+SHELL_CMD_ARG_REGISTER(version, NULL, "Show system version",
+                       shell_version_handler, 1, 0);
+SHELL_CMD_ARG_REGISTER(date, NULL, "Show current tick count",
+                       shell_date_handler, 1, 0);
+SHELL_CMD_ARG_REGISTER(kill, NULL, "Terminate a process by PID",
+                       shell_kill_handler, 2, 0);
+SHELL_CMD_ARG_REGISTER(benchmark, NULL, "Run CPU benchmark",
+                       shell_benchmark_handler, 1, 1);
+SHELL_CMD_ARG_REGISTER(stress, NULL, "Stress test process creation",
+                       shell_stress_handler, 1, 1);
+SHELL_CMD_ARG_REGISTER(reboot, NULL, "Reboot the system",
+                       shell_reboot_handler, 1, 0);
 
 /* Bytecode VM shell commands */
 SHELL_CMD_ARG_REGISTER(ls, NULL, "List programs and commands",
@@ -316,18 +363,26 @@ int main(void)
 	}
 
 	printk("\n");
-	printk("Process-based commands available:\n");
-	printk("  hello     - Print hello message\n");
+	printk("Available commands:\n");
 	printk("  echo      - Echo arguments\n");
+	printk("  version   - Show system version\n");
+	printk("  uptime    - Show system uptime\n");
+	printk("  mem       - Show memory information\n");
+	printk("  free      - Show free memory\n");
+	printk("  benchmark - Run CPU benchmark\n");
 	printk("  ps        - List processes\n");
+	printk("  hello     - Print hello message\n");
 	printk("  getpid    - Show process ID\n");
 	printk("  info      - Show process info\n");
 	printk("  sleep     - Sleep for milliseconds\n");
 	printk("  test      - Process creation test\n");
-	printk("  prochelp  - Show this help\n");
+	printk("  kill      - Terminate a process\n");
+	printk("  stress    - Stress test process creation\n");
+	printk("  clear     - Clear screen\n");
+	printk("  date      - Show current tick count\n");
+	printk("  reboot    - Reboot the system\n");
 	printk("\n");
-	printk("Each command runs in a separate process!\n");
-	printk("Type 'help' to see all available commands.\n");
+	printk("Each command runs in a separate process.\n");
 	printk("\n");
 
 	/* Return to let Zephyr shell handle input */
