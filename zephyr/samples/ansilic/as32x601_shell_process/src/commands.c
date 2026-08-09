@@ -14,6 +14,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "shell_process.h"
+#include "anl_loader.h"
 
 /**
  * @brief Hello command - prints greeting with process info
@@ -401,6 +402,78 @@ static int cmd_stress(int argc, char **argv)
 }
 
 /**
+ * @brief Fork command - spawn child processes (like QEMU fork demo)
+ * Usage: fork [nchildren] [iterations]
+ */
+struct fork_arg {
+	int id;
+	int iterations;
+};
+
+static void *fork_child_main(void *arg)
+{
+	struct fork_arg *fa = (struct fork_arg *)arg;
+	int id = fa->id;
+	int iters = fa->iterations;
+
+	printk("[child %d] started, PID=%d, parent PID=%d\n",
+	       id,
+	       process_current()->pid,
+	       process_current()->parent ? process_current()->parent->pid : 0);
+
+	for (int i = 0; i < iters; i++) {
+		printk("[child %d] iteration %d/%d\n", id, i + 1, iters);
+		k_msleep(500);
+	}
+
+	printk("[child %d] done\n", id);
+	return (void *)(intptr_t)id;
+}
+
+static int cmd_fork(int argc, char **argv)
+{
+	int nchildren = 1;
+	int iterations = 3;
+
+	if (argc >= 2) nchildren = atoi(argv[1]);
+	if (argc >= 3) iterations = atoi(argv[2]);
+
+	if (nchildren < 1 || nchildren > 4) {
+		printk("usage: fork <nchildren 1-4> [iterations]\n");
+		return -EINVAL;
+	}
+
+	printk("[parent] PID=%d, forking %d child(ren), %d iterations each\n",
+	       process_current()->pid, nchildren, iterations);
+
+	static struct fork_arg fork_args[4];
+	pid_t pids[4];
+
+	for (int i = 0; i < nchildren; i++) {
+		fork_args[i].id = i + 1;
+		fork_args[i].iterations = iterations;
+		char name[16];
+		snprintf(name, sizeof(name), "child_%d", i + 1);
+		pids[i] = new_task(name, fork_child_main, &fork_args[i]);
+		if (pids[i] < 0) {
+			printk("[parent] failed to fork child %d: %d\n", i + 1, pids[i]);
+		} else {
+			printk("[parent] forked child %d with PID=%d\n", i + 1, pids[i]);
+		}
+	}
+
+	for (int i = 0; i < nchildren; i++) {
+		if (pids[i] < 0) continue;
+		int status = 0;
+		pid_t ret = waitpid(pids[i], &status, 0);
+		printk("[parent] child PID=%d exited with status=%d\n", ret, status);
+	}
+
+	printk("[parent] all children done\n");
+	return 0;
+}
+
+/**
  * @brief Help command - list available commands
  */
 static int cmd_help(int argc, char **argv)
@@ -424,8 +497,88 @@ static int cmd_help(int argc, char **argv)
 	printk("  benchmark  - Run CPU benchmark\n");
 	printk("  stress     - Stress test process creation\n");
 	printk("  reboot     - Reboot the system\n");
+	printk("  upload_hex - Upload ANL binary via hex string\n");
+	printk("  load       - Load ANL binary (alias for upload_hex)\n");
+	printk("  fork       - Fork child processes\n");
 
 	return 0;
+}
+
+/* Exported symbols for ANL loader */
+static void anl_printk_wrapper(const char *fmt)
+{
+	printk("%s", fmt);
+}
+
+const struct anl_export _anl_exports[] = {
+	{ "printk",          (uintptr_t)anl_printk_wrapper },
+	{ "k_msleep",        (uintptr_t)k_msleep },
+	{ "new_task",        (uintptr_t)new_task },
+	{ "waitpid",         (uintptr_t)waitpid },
+	{ "process_current", (uintptr_t)process_current },
+};
+const int _anl_exports_count = 5;
+
+static uint8_t anl_buf[8192];
+
+static int hex_nibble(char c)
+{
+	if (c >= '0' && c <= '9') return c - '0';
+	if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+	if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+	return -1;
+}
+
+/**
+ * @brief Upload hex command - upload ANL binary via hex string
+ * Usage: upload_hex <name> <hexdata>
+ */
+static int cmd_upload_hex(int argc, char **argv)
+{
+	if (argc < 3) {
+		printk("Usage: upload_hex <name> <hexdata>\n");
+		return -EINVAL;
+	}
+
+	char *name = argv[1];
+	char *hex = argv[2];
+
+	size_t hexlen = strlen(hex);
+	if (hexlen & 1) {
+		printk("Error: odd hex length\n");
+		return -EINVAL;
+	}
+
+	size_t binlen = hexlen / 2;
+	if (binlen > sizeof(anl_buf)) {
+		printk("Error: too large (max %zu bytes)\n", sizeof(anl_buf));
+		return -EINVAL;
+	}
+
+	/* Convert hex to binary */
+	for (size_t i = 0; i < binlen; i++) {
+		int hi = hex_nibble(hex[i*2]);
+		int lo = hex_nibble(hex[i*2+1]);
+		if (hi < 0 || lo < 0) {
+			printk("Error: bad hex at position %zu\n", i*2);
+			return -EINVAL;
+		}
+		anl_buf[i] = (uint8_t)((hi << 4) | lo);
+	}
+
+	printk("Loaded %zu bytes, running '%s'...\n", binlen, name);
+	int ret = anl_load(name, anl_buf, binlen);
+	printk("anl_load returned %d\n", ret);
+
+	return ret;
+}
+
+/**
+ * @brief Load command - alias for upload_hex
+ */
+static int cmd_load(int argc, char **argv)
+{
+	return cmd_upload_hex(argc, argv);
 }
 
 /* Register commands using the macro */
@@ -447,3 +600,6 @@ SHELL_CMD_REGISTER(benchmark, "Run CPU benchmark", cmd_benchmark);
 SHELL_CMD_REGISTER(stress, "Stress test process creation", cmd_stress);
 SHELL_CMD_REGISTER(reboot, "Reboot the system", cmd_reboot);
 SHELL_CMD_REGISTER(help, "Show available commands", cmd_help);
+SHELL_CMD_REGISTER(upload_hex, "Upload ANL binary via hex", cmd_upload_hex);
+SHELL_CMD_REGISTER(load, "Load ANL binary", cmd_load);
+SHELL_CMD_REGISTER(fork, "Fork child processes", cmd_fork);

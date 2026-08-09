@@ -291,6 +291,7 @@ DEFINE_SHELL_HANDLER(shell_kill_handler, "kill")
 DEFINE_SHELL_HANDLER(shell_benchmark_handler, "benchmark")
 DEFINE_SHELL_HANDLER(shell_stress_handler, "stress")
 DEFINE_SHELL_HANDLER(shell_reboot_handler, "reboot")
+DEFINE_SHELL_HANDLER(shell_fork_handler, "fork")
 
 /* Register shell commands - these bridge to our process-based execution */
 SHELL_CMD_ARG_REGISTER(hello, NULL, "Print hello message (runs in new process)",
@@ -341,6 +342,8 @@ SHELL_CMD_ARG_REGISTER(run, NULL, "Execute bytecode program",
                        shell_run_handler, 2, 0);
 SHELL_CMD_ARG_REGISTER(rm, NULL, "Delete bytecode program",
                        shell_rm_handler, 2, 0);
+SHELL_CMD_ARG_REGISTER(fork, NULL, "Fork child processes",
+                       shell_fork_handler, 1, 2);
 
 /**
  * @brief Main application entry point
@@ -378,6 +381,7 @@ int main(void)
 	printk("  test      - Process creation test\n");
 	printk("  kill      - Terminate a process\n");
 	printk("  stress    - Stress test process creation\n");
+	printk("  fork      - Fork child processes\n");
 	printk("  clear     - Clear screen\n");
 	printk("  date      - Show current tick count\n");
 	printk("  reboot    - Reboot the system\n");
