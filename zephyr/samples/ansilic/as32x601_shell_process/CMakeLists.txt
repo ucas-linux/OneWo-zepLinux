@@ -13,3 +13,10 @@ target_sources(app PRIVATE
     src/bytecode_vm.c
     src/anl_loader.c
 )
+
+# Add Phase 1 test support
+target_sources(app PRIVATE
+    ${ZEPHYR_BASE}/tests/kernel/process/test_phase1_fd_refcount.c
+    ${ZEPHYR_BASE}/tests/kernel/process/test_phase1_shell.c
+    ${ZEPHYR_BASE}/kernel/test_idesc.c
+)
