@@ -4,6 +4,9 @@
 加载器从串口接收十六进制编码的 `.anl` 文件，完成格式校验、内存装载、重定位、
 外部符号解析，并跳转到模块入口执行。
 
+ANL Loader 与 Zephyr LLEXT 的设计取舍、轻量化优势和适用边界见
+[`docs/zh/anl-loader-vs-zephyr-llext.md`](../../../../docs/zh/anl-loader-vs-zephyr-llext.md)。
+
 ## 1. 环境要求
 
 - 已配置 Zephyr `west` 工作区。
