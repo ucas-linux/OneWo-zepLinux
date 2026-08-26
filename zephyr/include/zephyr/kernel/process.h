@@ -37,6 +37,7 @@ typedef int32_t pid_t;
 /* Forward declarations */
 struct z_process;
 struct k_thread;
+struct process_signal;
 
 /**
  * @brief File descriptor table entry
@@ -89,6 +90,9 @@ struct z_process {
 	atomic_t ref_count;               /* Reference count */
 	uint32_t flags;                   /* Process flags */
 	int exit_code;                    /* Exit code when terminated */
+
+	/* Signal handling */
+	struct process_signal *signal_state; /* Per-process signal state */
 };
 
 /**

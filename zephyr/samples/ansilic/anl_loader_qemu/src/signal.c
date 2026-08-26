@@ -1,0 +1,338 @@
+/*
+ * Copyright (c) 2024 OneWo-rtLinux Team
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include "signal.h"
+#include <zephyr/kernel.h>
+#include <zephyr/kernel/process.h>
+#include <errno.h>
+#include <string.h>
+#include <stdio.h>
+
+/* Foreground process group ID */
+static pid_t foreground_pgid = 0;
+static struct k_mutex foreground_lock;
+
+/* Default signal actions */
+static void default_signal_handler(int sig)
+{
+	struct z_process *proc = process_current();
+	printk("[SIGNAL] Process PID=%d received signal %d, default action: terminate\n",
+	       proc ? proc->pid : 0, sig);
+
+	/* For most signals, default action is to terminate */
+	/* In real implementation, SIGCHLD, SIGCONT etc would be ignored by default */
+}
+
+/**
+ * @brief Initialize signal subsystem for a process
+ */
+int signal_process_init(struct z_process *proc)
+{
+	if (!proc || !proc->signal_state) {
+		return -EINVAL;
+	}
+
+	struct process_signal *sig = proc->signal_state;
+
+	sig->pending_signals = 0;
+	sig->blocked_signals = 0;
+
+	/* Initialize event for this process */
+	k_event_init(&sig->signal_event);
+
+	/* Initialize mutex */
+	k_mutex_init(&sig->lock);
+
+	/* Set default handlers */
+	for (int i = 0; i < _NSIG; i++) {
+		sig->handlers[i] = SIG_DFL;
+	}
+
+	/* SIGCHLD is ignored by default */
+	sig->handlers[SIGCHLD] = SIG_IGN;
+
+	return 0;
+}
+
+/**
+ * @brief Cleanup signal subsystem for a process
+ */
+void signal_process_cleanup(struct z_process *proc)
+{
+	if (!proc || !proc->signal_state) {
+		return;
+	}
+
+	/* Clear all pending signals */
+	struct process_signal *sig = proc->signal_state;
+	sig->pending_signals = 0;
+
+	/* Wake up any waiters */
+	k_event_post(&sig->signal_event, 0xFFFFFFFF);
+}
+
+/**
+ * @brief Send a signal to a process
+ */
+int kill(pid_t pid, int sig)
+{
+	if (sig < 0 || sig >= _NSIG) {
+		return -EINVAL;
+	}
+
+	if (pid <= 0) {
+		return -EINVAL; /* Process groups not fully implemented yet */
+	}
+
+	struct z_process *proc = process_get(pid);
+	if (!proc || !proc->signal_state) {
+		return -ESRCH;
+	}
+
+	struct process_signal *psig = proc->signal_state;
+
+	k_mutex_lock(&psig->lock, K_FOREVER);
+
+	/* Set the signal bit */
+	psig->pending_signals |= (1U << sig);
+
+	/* Wake up the process by posting to its event */
+	k_event_post(&psig->signal_event, (1U << sig));
+
+	k_mutex_unlock(&psig->lock);
+
+	printk("[SIGNAL] Sent signal %d to process PID=%d\n", sig, pid);
+
+	return 0;
+}
+
+/**
+ * @brief Send a signal to a process group
+ */
+int killpg(pid_t pgid, int sig)
+{
+	if (sig < 0 || sig >= _NSIG) {
+		return -EINVAL;
+	}
+
+	/* Simplified: send to all processes (no real process groups yet) */
+	int count = 0;
+	for (int i = 0; i < CONFIG_MAX_PROCESS_COUNT; i++) {
+		struct z_process *proc = process_get(i);
+		if (proc && proc->pid > 0) {
+			if (kill(proc->pid, sig) == 0) {
+				count++;
+			}
+		}
+	}
+
+	return count > 0 ? 0 : -ESRCH;
+}
+
+/**
+ * @brief Set signal handler for current process
+ */
+signal_handler_t signal(int sig, signal_handler_t handler)
+{
+	if (sig < 0 || sig >= _NSIG) {
+		return SIG_ERR;
+	}
+
+	/* SIGKILL and SIGSTOP cannot be caught */
+	if (sig == SIGKILL || sig == SIGSTOP) {
+		return SIG_ERR;
+	}
+
+	struct z_process *proc = process_current();
+	if (!proc || !proc->signal_state) {
+		return SIG_ERR;
+	}
+
+	struct process_signal *psig = proc->signal_state;
+
+	k_mutex_lock(&psig->lock, K_FOREVER);
+	signal_handler_t old_handler = psig->handlers[sig];
+	psig->handlers[sig] = handler;
+	k_mutex_unlock(&psig->lock);
+
+	return old_handler;
+}
+
+/**
+ * @brief Block signals
+ */
+int sigblock(uint32_t mask)
+{
+	struct z_process *proc = process_current();
+	if (!proc || !proc->signal_state) {
+		return -ESRCH;
+	}
+
+	struct process_signal *psig = proc->signal_state;
+
+	k_mutex_lock(&psig->lock, K_FOREVER);
+	psig->blocked_signals |= mask;
+	k_mutex_unlock(&psig->lock);
+
+	return 0;
+}
+
+/**
+ * @brief Unblock signals
+ */
+int sigunblock(uint32_t mask)
+{
+	struct z_process *proc = process_current();
+	if (!proc || !proc->signal_state) {
+		return -ESRCH;
+	}
+
+	struct process_signal *psig = proc->signal_state;
+
+	k_mutex_lock(&psig->lock, K_FOREVER);
+	psig->blocked_signals &= ~mask;
+	k_mutex_unlock(&psig->lock);
+
+	/* Check if we just unblocked any pending signals */
+	signal_check_pending();
+
+	return 0;
+}
+
+/**
+ * @brief Wait for signal event with timeout
+ */
+int signal_wait(k_timeout_t timeout)
+{
+	struct z_process *proc = process_current();
+	if (!proc || !proc->signal_state) {
+		return -ESRCH;
+	}
+
+	struct process_signal *psig = proc->signal_state;
+
+	/* Wait on this process's own event object */
+	uint32_t events = k_event_wait(&psig->signal_event, 0xFFFFFFFF, false, timeout);
+
+	if (events == 0) {
+		return 0; /* Timeout */
+	}
+
+	/* Find which signal was received */
+	for (int sig = 1; sig < _NSIG; sig++) {
+		if (events & (1U << sig)) {
+			return sig;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * @brief Check and handle pending signals
+ */
+int signal_check_pending(void)
+{
+	struct z_process *proc = process_current();
+	if (!proc || !proc->signal_state) {
+		return -ESRCH;
+	}
+
+	struct process_signal *psig = proc->signal_state;
+
+	k_mutex_lock(&psig->lock, K_FOREVER);
+
+	/* Get unblocked pending signals */
+	uint32_t deliverable = psig->pending_signals & ~psig->blocked_signals;
+
+	if (deliverable == 0) {
+		k_mutex_unlock(&psig->lock);
+		return 0;
+	}
+
+	int handled = 0;
+
+	/* Handle each pending signal */
+	for (int sig = 1; sig < _NSIG; sig++) {
+		if (!(deliverable & (1U << sig))) {
+			continue;
+		}
+
+		/* Clear the pending bit */
+		psig->pending_signals &= ~(1U << sig);
+
+		signal_handler_t handler = psig->handlers[sig];
+
+		k_mutex_unlock(&psig->lock);
+
+		/* Call handler outside of lock */
+		if (handler == SIG_IGN) {
+			/* Ignore */
+			printk("[SIGNAL] PID=%d ignored signal %d\n", proc->pid, sig);
+		} else if (handler == SIG_DFL) {
+			/* Default action */
+			default_signal_handler(sig);
+		} else {
+			/* User-defined handler */
+			printk("[SIGNAL] PID=%d calling handler for signal %d\n", proc->pid, sig);
+			handler(sig);
+		}
+
+		handled++;
+
+		k_mutex_lock(&psig->lock, K_FOREVER);
+	}
+
+	k_mutex_unlock(&psig->lock);
+
+	return handled;
+}
+
+/**
+ * @brief Set foreground process group
+ */
+void signal_set_foreground_pgid(pid_t pgid)
+{
+	k_mutex_lock(&foreground_lock, K_FOREVER);
+	foreground_pgid = pgid;
+	k_mutex_unlock(&foreground_lock);
+
+	printk("[SIGNAL] Foreground process group set to PID=%d\n", pgid);
+}
+
+/**
+ * @brief Get foreground process group
+ */
+pid_t signal_get_foreground_pgid(void)
+{
+	k_mutex_lock(&foreground_lock, K_FOREVER);
+	pid_t pgid = foreground_pgid;
+	k_mutex_unlock(&foreground_lock);
+
+	return pgid;
+}
+
+/**
+ * @brief Get process signal state
+ */
+struct process_signal *signal_get_state(struct z_process *proc)
+{
+	if (!proc) {
+		return NULL;
+	}
+	return proc->signal_state;
+}
+
+/**
+ * @brief Initialize signal subsystem
+ */
+static int signal_subsystem_init(void)
+{
+	k_mutex_init(&foreground_lock);
+	foreground_pgid = 0;
+	return 0;
+}
+
+SYS_INIT(signal_subsystem_init, APPLICATION, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT);
