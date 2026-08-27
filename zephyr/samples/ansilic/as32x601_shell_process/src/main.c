@@ -10,10 +10,12 @@
 #include <zephyr/kernel.h>
 #include <zephyr/shell/shell.h>
 #include <zephyr/kernel/process.h>
+#include <zephyr/drivers/uart.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include "shell_process.h"
+#include "signal.h"
 
 /**
  * @brief Shell command handler - hello
@@ -292,6 +294,9 @@ DEFINE_SHELL_HANDLER(shell_benchmark_handler, "benchmark")
 DEFINE_SHELL_HANDLER(shell_stress_handler, "stress")
 DEFINE_SHELL_HANDLER(shell_reboot_handler, "reboot")
 DEFINE_SHELL_HANDLER(shell_fork_handler, "fork")
+DEFINE_SHELL_HANDLER(shell_loop_handler, "loop")
+DEFINE_SHELL_HANDLER(shell_sigint_handler, "sigint")
+DEFINE_SHELL_HANDLER(shell_test_signal_handler, "test_signal")
 
 /* Register shell commands - these bridge to our process-based execution */
 SHELL_CMD_ARG_REGISTER(hello, NULL, "Print hello message (runs in new process)",
@@ -330,6 +335,12 @@ SHELL_CMD_ARG_REGISTER(stress, NULL, "Stress test process creation",
                        shell_stress_handler, 1, 1);
 SHELL_CMD_ARG_REGISTER(reboot, NULL, "Reboot the system",
                        shell_reboot_handler, 1, 0);
+SHELL_CMD_ARG_REGISTER(loop, NULL, "Infinite loop for signal testing",
+                       shell_loop_handler, 1, 1);
+SHELL_CMD_ARG_REGISTER(sigint, NULL, "Send SIGINT to foreground process",
+                       shell_sigint_handler, 1, 0);
+SHELL_CMD_ARG_REGISTER(test_signal, NULL, "Self-test signal delivery",
+                       shell_test_signal_handler, 1, 0);
 
 /* Bytecode VM shell commands */
 SHELL_CMD_ARG_REGISTER(ls, NULL, "List programs and commands",
@@ -382,11 +393,16 @@ int main(void)
 	printk("  kill      - Terminate a process\n");
 	printk("  stress    - Stress test process creation\n");
 	printk("  fork      - Fork child processes\n");
+	printk("  loop      - Loop for signal testing\n");
+	printk("  sigint    - Send SIGINT to foreground process\n");
+	printk("  test_signal - Self-test signal delivery\n");
 	printk("  clear     - Clear screen\n");
 	printk("  date      - Show current tick count\n");
 	printk("  reboot    - Reboot the system\n");
 	printk("\n");
 	printk("Each command runs in a separate process.\n");
+	printk("Run 'test_signal' to verify signal delivery works.\n");
+	printk("Press Ctrl+C to send SIGINT to foreground process.\n");
 	printk("\n");
 
 	/* Return to let Zephyr shell handle input */
