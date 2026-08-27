@@ -13,6 +13,15 @@
 #include <zephyr/init.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/net_buf.h>
+#include <zephyr/kernel/process.h>
+
+/* Signal support for process-based shell */
+typedef int pid_t;
+extern pid_t signal_get_foreground_pgid(void);
+extern int kill(pid_t pid, int signo);
+#define SIGINT 2
+/* Use Ctrl+C (0x03) for signal delivery */
+#define CTRL_C 0x03  /* Ctrl+C */
 
 #define LOG_MODULE_NAME shell_uart
 LOG_MODULE_REGISTER(shell_uart);
@@ -91,6 +100,33 @@ static void uart_rx_handle(const struct device *dev, struct shell_uart_int_drive
 			if (rd_len > 0) {
 				new_data = true;
 			}
+
+#ifdef CONFIG_PROCESS
+			/* Check for Ctrl+C or Ctrl+D and send signal to foreground process */
+			for (uint32_t i = 0; i < rd_len; i++) {
+				printk("[UART] Received char: 0x%02x\n", data[i]);
+				if (data[i] == CTRL_C || data[i] == CTRL_D) {
+					printk("[UART] Detected Ctrl+%c (0x%02x)\n",
+					       data[i] == CTRL_C ? 'C' : 'D', data[i]);
+					pid_t fg_pgid = signal_get_foreground_pgid();
+					printk("[UART] Foreground PID: %d\n", fg_pgid);
+					if (fg_pgid > 0) {
+						/* Send SIGINT to foreground process */
+						int ret = kill(fg_pgid, SIGINT);
+						printk("[UART] kill() returned: %d\n", ret);
+						/* Remove Ctrl+C/Ctrl+D from stream */
+						if (i + 1 < rd_len) {
+							memmove(&data[i], &data[i + 1], rd_len - i - 1);
+						}
+						rd_len--;
+						i--;
+					} else {
+						printk("[UART] No foreground process\n");
+					}
+				}
+			}
+#endif
+
 #ifdef CONFIG_MCUMGR_TRANSPORT_SHELL
 			/* Divert bytes from shell handling if it is
 			 * part of an mcumgr frame.
@@ -266,6 +302,16 @@ static void polling_rx_timeout_handler(struct k_timer *timer)
 	struct shell_uart_polling *sh_uart = k_timer_user_data_get(timer);
 
 	while (uart_poll_in(sh_uart->common.dev, &c) == 0) {
+		/* Check for Ctrl+C (0x03) and send signal to foreground process */
+		if (c == CTRL_C) {
+			pid_t fg_pgid = signal_get_foreground_pgid();
+			if (fg_pgid > 0) {
+				/* Send SIGINT to foreground process */
+				kill(fg_pgid, SIGINT);
+				/* Don't put Ctrl+C in ring buffer - consume it */
+				continue;
+			}
+		}
 		if (ring_buf_put(&sh_uart->rx_ringbuf, &c, 1) == 0U) {
 			/* ring buffer full. */
 			LOG_WRN("RX ring buffer full.");
@@ -301,10 +347,13 @@ static int init(const struct shell_transport *transport,
 #endif
 
 	if (IS_ENABLED(CONFIG_SHELL_BACKEND_SERIAL_API_ASYNC)) {
+		printk("[UART] Using ASYNC mode\n");
 		async_init((struct shell_uart_async *)transport->ctx);
 	} else if (IS_ENABLED(CONFIG_SHELL_BACKEND_SERIAL_API_INTERRUPT_DRIVEN)) {
+		printk("[UART] Using INTERRUPT_DRIVEN mode\n");
 		irq_init((struct shell_uart_int_driven *)transport->ctx);
 	} else {
+		printk("[UART] Using POLLING mode\n");
 		polling_init((struct shell_uart_polling *)transport->ctx);
 	}
 

@@ -9,7 +9,6 @@
 #include <errno.h>
 #include <stdio.h>
 #include "shell_process.h"
-#include "signal.h"
 
 #define MAX_COMMANDS 16
 #define TASK_STACK_SIZE 2048
@@ -75,14 +74,6 @@ pid_t new_task(const char *name, void *(*run)(void *), void *arg)
 
 	struct z_process *child = process_create(parent);
 	if (!child) return -ENOMEM;
-
-	/* Allocate and initialize signal state for child process */
-	child->signal_state = k_malloc(sizeof(struct process_signal));
-	if (!child->signal_state) {
-		process_exit(child, -ENOMEM);
-		return -ENOMEM;
-	}
-	signal_process_init(child);
 
 	k_thread_stack_t *stack = NULL;
 	int stack_index = -1;
@@ -167,8 +158,7 @@ pid_t waitpid(pid_t pid, int *status, int options)
 	struct process_exit_msg msg;
 
 	while (1) {
-		/* Use timeout to allow interruption checking */
-		int ret = k_msgq_get(&process_exit_queue, &msg, K_MSEC(100));
+		int ret = k_msgq_get(&process_exit_queue, &msg, K_FOREVER);
 		if (ret == 0) {
 			if (msg.pid == pid || pid == -1) {
 				if (status) *status = msg.exit_code;
@@ -207,7 +197,6 @@ pid_t waitpid(pid_t pid, int *status, int options)
 			k_msgq_put(&process_exit_queue, &msg, K_NO_WAIT);
 			k_yield();
 		}
-		/* Timeout - allow caller to check for interruption */
 	}
 
 	return -ECHILD;
