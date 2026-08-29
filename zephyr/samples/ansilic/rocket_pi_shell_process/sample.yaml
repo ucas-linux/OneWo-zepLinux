@@ -1,0 +1,15 @@
+sample:
+  description: RocketPi Shell with Process Support and Signal Handling
+  name: RocketPi Shell Process
+common:
+  tags: shell process signal
+  platform_allow: rocket_pi
+  integration_platforms:
+    - rocket_pi
+  harness: console
+  harness_config:
+    type: multi_line
+    ordered: false
+    regex:
+      - "RocketPi Shell with Process Support"
+      - "Init process PID:"

@@ -1,0 +1,777 @@
+/*
+ * Copyright (c) 2024 OneWo-rtLinux Team
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Sample shell commands
+ */
+
+#include <zephyr/kernel.h>
+#include <zephyr/kernel/process.h>
+#include <zephyr/sys/reboot.h>
+#include <zephyr/version.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include "shell_process.h"
+#include "anl_loader.h"
+#include "signal.h"
+
+/**
+ * @brief Hello command - prints greeting with process info
+ */
+static int cmd_hello(int argc, char **argv)
+{
+	struct z_process *proc = process_current();
+
+	if (!proc) {
+		printk("Hello from unknown process (proc is NULL)!\n");
+		return 0;
+	}
+
+	/* Validate process structure before accessing */
+	if ((uintptr_t)proc < 0x20000000 || (uintptr_t)proc > 0x20080000) {
+		printk("Hello from invalid process (proc=%p)!\n", proc);
+		return 0;
+	}
+
+	pid_t my_pid = proc->pid;
+	printk("Hello from process PID %d!\n", my_pid);
+
+	if (argc > 1) {
+		printk("Arguments: ");
+		for (int i = 1; i < argc; i++) {
+			printk("%s ", argv[i]);
+		}
+		printk("\n");
+	}
+
+	return 0;
+}
+
+/**
+ * @brief Echo command - echoes arguments
+ */
+static int cmd_echo(int argc, char **argv)
+{
+	for (int i = 1; i < argc; i++) {
+		printk("%s", argv[i]);
+		if (i < argc - 1) {
+			printk(" ");
+		}
+	}
+	printk("\n");
+
+	return 0;
+}
+
+/**
+ * @brief PS command - list processes (simplified)
+ */
+static int cmd_ps(int argc, char **argv)
+{
+	printk("=== DEBUG: cmd_ps started ===\n");
+	printk("PID    PPID   Command\n");
+	printk("------------------------\n");
+
+	/* Get current process */
+	//printk("DEBUG: Calling process_current()...\n");
+	struct z_process *current = process_current();
+	//printk("DEBUG: process_current() returned %p\n", current);
+
+	if (!current || current->pid == PID_INVALID) {
+		printk("ERROR: Invalid current process\n");
+		return -1;
+	}
+
+	//printk("DEBUG: Current process PID = %d\n", current->pid);
+
+	/* Print current process */
+	printk("%-6d %-6d %s\n", (int)current->pid, 0, "ps");
+
+	/* Print init process */
+	printk("%-6d %-6d %s\n", (int)PID_INIT, 0, "init");
+
+	//printk("DEBUG: cmd_ps about to return\n");
+	return 0;
+}
+
+/**
+ * @brief Sleep command - sleeps for specified milliseconds
+ */
+static int cmd_sleep(int argc, char **argv)
+{
+	if (argc < 2) {
+		printk("Usage: sleep <milliseconds>\n");
+		return -EINVAL;
+	}
+
+	int ms = atoi(argv[1]);
+	if (ms <= 0) {
+		printk("Invalid sleep time: %s\n", argv[1]);
+		return -EINVAL;
+	}
+
+	printk("Sleeping for %d ms in PID %d...\n",
+	       ms, process_current() ? process_current()->pid : -1);
+	k_msleep(ms);
+	printk("Woke up!\n");
+
+	return 0;
+}
+
+/**
+ * @brief Test command - stress test for process creation
+ */
+static int cmd_test(int argc, char **argv)
+{
+	struct z_process *proc = process_current();
+
+	printk("Test command running in PID %d\n", proc ? proc->pid : -1);
+	printk("Creating 3 child processes...\n");
+
+	for (int i = 0; i < 3; i++) {
+		struct z_process *child = process_create(proc);
+		if (child) {
+			printk("  Created child process PID %d\n", child->pid);
+			/* Clean up immediately for test */
+			process_exit(child, 0);
+		} else {
+			printk("  Failed to create child %d\n", i);
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * @brief Getpid command - print current process ID
+ */
+static int cmd_getpid(int argc, char **argv)
+{
+	struct z_process *proc = process_current();
+	printk("Current PID: %d\n", proc ? proc->pid : -1);
+
+	if (proc && proc->parent) {
+		printk("Parent PID: %d\n", proc->parent->pid);
+	}
+
+	return 0;
+}
+
+/**
+ * @brief Info command - print process information
+ */
+static int cmd_info(int argc, char **argv)
+{
+	struct z_process *proc = process_current();
+
+	if (!proc) {
+		printk("No current process!\n");
+		return -ESRCH;
+	}
+
+	printk("Process Information:\n");
+	printk("  PID: %d\n", proc->pid);
+	printk("  Parent PID: %d\n", proc->parent ? proc->parent->pid : 0);
+	printk("  Main thread: %p\n", proc->main_thread);
+	printk("  Ref count: %ld\n", (long)atomic_get(&proc->ref_count));
+	printk("  Exit code: %d\n", proc->exit_code);
+
+	return 0;
+}
+
+/**
+ * @brief Uptime command - show system uptime
+ */
+static int cmd_uptime(int argc, char **argv)
+{
+	int64_t uptime_ms = k_uptime_get();
+	int64_t uptime_sec = uptime_ms / 1000;
+	int hours = uptime_sec / 3600;
+	int minutes = (uptime_sec % 3600) / 60;
+	int seconds = uptime_sec % 60;
+
+	printk("System uptime: %d hours, %d minutes, %d seconds\n",
+	       hours, minutes, seconds);
+	printk("Uptime (ms): %lld\n", uptime_ms);
+
+	return 0;
+}
+
+/**
+ * @brief Memory command - show memory usage information
+ */
+static int cmd_mem(int argc, char **argv)
+{
+	struct z_process *proc = process_current();
+
+	printk("Memory Information:\n");
+
+	if (proc) {
+		printk("  Current Process PID: %d\n", proc->pid);
+		if (proc->main_thread) {
+			printk("  Main thread: %p\n", proc->main_thread);
+		}
+	}
+
+#ifdef CONFIG_HEAP_MEM_POOL_SIZE
+	printk("  Heap configured: %d bytes\n", CONFIG_HEAP_MEM_POOL_SIZE);
+#endif
+
+	return 0;
+}
+
+/**
+ * @brief Clear command - clear screen (send ANSI escape codes)
+ */
+static int cmd_clear(int argc, char **argv)
+{
+	printk("\033[2J\033[H");
+	return 0;
+}
+
+/**
+ * @brief Version command - show system version
+ */
+static int cmd_version(int argc, char **argv)
+{
+	printk("OneWo-zepLinux\n");
+	printk("Kernel version: %s\n", KERNEL_VERSION_STRING);
+	printk("Board: as32x601_evb\n");
+	printk("Architecture: RISC-V\n");
+
+	return 0;
+}
+
+/**
+ * @brief Reboot command - reboot the system
+ */
+static int cmd_reboot(int argc, char **argv)
+{
+	printk("Rebooting system...\n");
+	k_msleep(100); /* Give time for message to be printed */
+
+#ifdef CONFIG_REBOOT
+	sys_reboot(SYS_REBOOT_COLD);
+#else
+	printk("Reboot not supported on this platform\n");
+#endif
+	return 0;
+}
+
+/**
+ * @brief Date command - show current tick count
+ */
+static int cmd_date(int argc, char **argv)
+{
+	int64_t cycles = k_cycle_get_64();
+	int64_t uptime_ms = k_uptime_get();
+
+	printk("System ticks: %lld\n", k_uptime_ticks());
+	printk("System cycles: %lld\n", cycles);
+	printk("Uptime (ms): %lld\n", uptime_ms);
+
+	return 0;
+}
+
+/**
+ * @brief Free command - show free memory (simplified)
+ */
+static int cmd_free(int argc, char **argv)
+{
+	printk("Memory Usage (simplified):\n");
+
+#ifdef CONFIG_HEAP_MEM_POOL_SIZE
+	printk("  Total heap: %d bytes\n", CONFIG_HEAP_MEM_POOL_SIZE);
+#else
+	printk("  Heap not configured\n");
+#endif
+
+	/* Show stack usage if available */
+	struct z_process *proc = process_current();
+	if (proc && proc->main_thread) {
+		size_t unused;
+		int ret = k_thread_stack_space_get(proc->main_thread, &unused);
+		if (ret == 0) {
+			printk("  Thread stack unused: %zu bytes\n", unused);
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * @brief Kill command - terminate a process by PID
+ */
+static int cmd_kill(int argc, char **argv)
+{
+	if (argc < 2) {
+		printk("Usage: kill <pid>\n");
+		return -EINVAL;
+	}
+
+	pid_t target_pid = atoi(argv[1]);
+
+	if (target_pid == PID_INIT) {
+		printk("Cannot kill init process!\n");
+		return -EPERM;
+	}
+
+	struct z_process *proc = process_current();
+	if (proc && proc->pid == target_pid) {
+		printk("Terminating current process PID %d...\n", target_pid);
+		process_exit(proc, 0);
+		return 0;
+	}
+
+	printk("Process %d not found or not accessible\n", target_pid);
+	return -ESRCH;
+}
+
+/**
+ * @brief Benchmark command - simple CPU benchmark
+ */
+static int cmd_benchmark(int argc, char **argv)
+{
+	int iterations = 10000;
+
+	if (argc > 1) {
+		iterations = atoi(argv[1]);
+		if (iterations <= 0 || iterations > 1000000) {
+			printk("Invalid iterations. Using default (10000)\n");
+			iterations = 10000;
+		}
+	}
+
+	printk("Running benchmark with %d iterations...\n", iterations);
+
+	int64_t start = k_uptime_get();
+	volatile uint32_t sum = 0;
+
+	for (int i = 0; i < iterations; i++) {
+		sum += i * i;
+	}
+
+	int64_t end = k_uptime_get();
+	int64_t elapsed = end - start;
+
+	printk("Completed in %lld ms\n", elapsed);
+	printk("Result: %u (to prevent optimization)\n", sum);
+
+	return 0;
+}
+
+/**
+ * @brief Stress command - create multiple processes rapidly
+ */
+static int cmd_stress(int argc, char **argv)
+{
+	int count = 5;
+
+	if (argc > 1) {
+		count = atoi(argv[1]);
+		if (count <= 0 || count > 20) {
+			printk("Count must be between 1 and 20\n");
+			return -EINVAL;
+		}
+	}
+
+	struct z_process *proc = process_current();
+	if (!proc) {
+		printk("No current process!\n");
+		return -ESRCH;
+	}
+
+	printk("Creating %d processes rapidly...\n", count);
+	int success = 0;
+	int64_t start = k_uptime_get();
+
+	for (int i = 0; i < count; i++) {
+		struct z_process *child = process_create(proc);
+		if (child) {
+			success++;
+			process_exit(child, 0);
+		}
+		k_msleep(10); /* Small delay */
+	}
+
+	int64_t elapsed = k_uptime_get() - start;
+	printk("Created %d/%d processes in %lld ms\n", success, count, elapsed);
+
+	return 0;
+}
+
+/**
+ * @brief Fork command - spawn child processes (like QEMU fork demo)
+ * Usage: fork [nchildren] [iterations]
+ */
+struct fork_arg {
+	int id;
+	int iterations;
+};
+
+static void *fork_child_main(void *arg)
+{
+	struct fork_arg *fa = (struct fork_arg *)arg;
+	int id = fa->id;
+	int iters = fa->iterations;
+
+	printk("[child %d] started, PID=%d, parent PID=%d\n",
+	       id,
+	       process_current()->pid,
+	       process_current()->parent ? process_current()->parent->pid : 0);
+
+	for (int i = 0; i < iters; i++) {
+		printk("[child %d] iteration %d/%d\n", id, i + 1, iters);
+		k_msleep(500);
+	}
+
+	printk("[child %d] done\n", id);
+	return (void *)(intptr_t)id;
+}
+
+static int cmd_fork(int argc, char **argv)
+{
+	int nchildren = 1;
+	int iterations = 3;
+
+	if (argc >= 2) nchildren = atoi(argv[1]);
+	if (argc >= 3) iterations = atoi(argv[2]);
+
+	if (nchildren < 1 || nchildren > 4) {
+		printk("usage: fork <nchildren 1-4> [iterations]\n");
+		return -EINVAL;
+	}
+
+	printk("[parent] PID=%d, forking %d child(ren), %d iterations each\n",
+	       process_current()->pid, nchildren, iterations);
+
+	static struct fork_arg fork_args[4];
+	pid_t pids[4];
+
+	for (int i = 0; i < nchildren; i++) {
+		fork_args[i].id = i + 1;
+		fork_args[i].iterations = iterations;
+		char name[16];
+		snprintf(name, sizeof(name), "child_%d", i + 1);
+		pids[i] = new_task(name, fork_child_main, &fork_args[i]);
+		if (pids[i] < 0) {
+			printk("[parent] failed to fork child %d: %d\n", i + 1, pids[i]);
+		} else {
+			printk("[parent] forked child %d with PID=%d\n", i + 1, pids[i]);
+		}
+	}
+
+	for (int i = 0; i < nchildren; i++) {
+		if (pids[i] < 0) continue;
+		int status = 0;
+		pid_t ret = waitpid(pids[i], &status, 0);
+		printk("[parent] child PID=%d exited with status=%d\n", ret, status);
+	}
+
+	printk("[parent] all children done\n");
+	return 0;
+}
+
+/**
+ * @brief Help command - list available commands
+ */
+static int cmd_help(int argc, char **argv)
+{
+	printk("Available commands:\n");
+	printk("  help       - Show this help message\n");
+	printk("  hello      - Print hello message\n");
+	printk("  echo       - Echo arguments\n");
+	printk("  ps         - List processes\n");
+	printk("  getpid     - Show current process ID\n");
+	printk("  info       - Show detailed process info\n");
+	printk("  sleep      - Sleep for specified milliseconds\n");
+	printk("  test       - Run process creation test\n");
+	printk("  uptime     - Show system uptime\n");
+	printk("  mem        - Show memory information\n");
+	printk("  free       - Show free memory\n");
+	printk("  clear      - Clear screen\n");
+	printk("  version    - Show system version\n");
+	printk("  date       - Show current tick count\n");
+	printk("  kill       - Terminate a process by PID\n");
+	printk("  benchmark  - Run CPU benchmark\n");
+	printk("  stress     - Stress test process creation\n");
+	printk("  reboot     - Reboot the system\n");
+	printk("  upload_hex - Upload ANL binary via hex string\n");
+	printk("  load       - Load ANL binary (alias for upload_hex)\n");
+	printk("  fork       - Fork child processes\n");
+	printk("  loop       - Infinite loop for signal testing\n");
+	printk("  sigint     - Send SIGINT to foreground process\n");
+
+	return 0;
+}
+
+/* Exported symbols for ANL loader */
+static void anl_printk_wrapper(const char *fmt)
+{
+	printk("%s", fmt);
+}
+
+const struct anl_export _anl_exports[] = {
+	{ "printk",          (uintptr_t)anl_printk_wrapper },
+	{ "k_msleep",        (uintptr_t)k_msleep },
+	{ "new_task",        (uintptr_t)new_task },
+	{ "waitpid",         (uintptr_t)waitpid },
+	{ "process_current", (uintptr_t)process_current },
+};
+const int _anl_exports_count = 5;
+
+static uint8_t anl_buf[8192];
+
+static int hex_nibble(char c)
+{
+	if (c >= '0' && c <= '9') return c - '0';
+	if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+	if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+	return -1;
+}
+
+/**
+ * @brief Upload hex command - upload ANL binary via hex string
+ * Usage: upload_hex <name> <hexdata>
+ */
+static int cmd_upload_hex(int argc, char **argv)
+{
+	if (argc < 3) {
+		printk("Usage: upload_hex <name> <hexdata>\n");
+		return -EINVAL;
+	}
+
+	char *name = argv[1];
+	char *hex = argv[2];
+
+	size_t hexlen = strlen(hex);
+	if (hexlen & 1) {
+		printk("Error: odd hex length\n");
+		return -EINVAL;
+	}
+
+	size_t binlen = hexlen / 2;
+	if (binlen > sizeof(anl_buf)) {
+		printk("Error: too large (max %zu bytes)\n", sizeof(anl_buf));
+		return -EINVAL;
+	}
+
+	/* Convert hex to binary */
+	for (size_t i = 0; i < binlen; i++) {
+		int hi = hex_nibble(hex[i*2]);
+		int lo = hex_nibble(hex[i*2+1]);
+		if (hi < 0 || lo < 0) {
+			printk("Error: bad hex at position %zu\n", i*2);
+			return -EINVAL;
+		}
+		anl_buf[i] = (uint8_t)((hi << 4) | lo);
+	}
+
+	printk("Loaded %zu bytes, running '%s'...\n", binlen, name);
+	int ret = anl_load(name, anl_buf, binlen);
+	printk("anl_load returned %d\n", ret);
+
+	return ret;
+}
+
+/**
+ * @brief Load command - alias for upload_hex
+ */
+static int cmd_load(int argc, char **argv)
+{
+	return cmd_upload_hex(argc, argv);
+}
+
+/**
+ * @brief Loop command - infinite loop for signal testing
+ * Sets itself as foreground and loops until interrupted by signal
+ */
+static int cmd_loop(int argc, char **argv)
+{
+	struct z_process *proc = process_current();
+
+	/* Parse duration argument (default 10 seconds) */
+	int duration_sec = 10;
+	if (argc > 1) {
+		duration_sec = atoi(argv[1]);
+		if (duration_sec <= 0) duration_sec = 10;
+	}
+
+	printk("Loop started (PID %d). Running for %d seconds...\n", proc->pid, duration_sec);
+	printk("Use 'sigint' command from another terminal to interrupt.\n");
+
+	/* Set this process as foreground to receive signals */
+	signal_set_foreground_pgid(proc->pid);
+
+	/* Install signal handler */
+	volatile int interrupted = 0;
+	void handler(int sig) {
+		interrupted = 1;
+		printk("\nLoop interrupted by signal %d\n", sig);
+	}
+	signal(SIGINT, handler);
+
+	/* Loop for specified duration or until signal received */
+	int count = 0;
+	int max_count = duration_sec * 100;  /* 10ms per iteration */
+	while (!interrupted && count < max_count) {
+		if (count % 100 == 0) {
+			printk(".");
+		}
+		/* Check for pending signals */
+		signal_check_pending();
+		k_msleep(10);
+		count++;
+	}
+
+	if (!interrupted) {
+		printk("\nLoop completed (no signal received)\n");
+	}
+	printk("Loop exiting.\n");
+	return 0;
+}
+
+/**
+ * @brief sigint command - send SIGINT to foreground process
+ */
+static int cmd_sigint(int argc, char **argv)
+{
+	pid_t fg_pgid = signal_get_foreground_pgid();
+
+	if (fg_pgid <= 0) {
+		printk("No foreground process\n");
+		return -ESRCH;
+	}
+
+	printk("Sending SIGINT to foreground process (PID=%d)\n", fg_pgid);
+	int ret = kill(fg_pgid, SIGINT);
+
+	if (ret == 0) {
+		printk("Signal delivered successfully\n");
+	} else {
+		printk("Failed to deliver signal: %d\n", ret);
+	}
+
+	return ret;
+}
+
+/**
+ * @brief test_signal command - self-test signal delivery
+ * Creates a child process that waits for signal, then sends it
+ */
+static int cmd_test_signal(int argc, char **argv)
+{
+	printk("=== Signal Delivery Self-Test ===\n");
+
+	/* Child process that waits for signal */
+	struct child_context {
+		volatile int received;
+		int signal_num;
+	};
+	static struct child_context ctx = {0};
+
+	void *child_func(void *arg) {
+		struct child_context *c = (struct child_context *)arg;
+		struct z_process *proc = process_current();
+
+		printk("[Child PID=%d] Installing signal handler\n", proc->pid);
+
+		void handler(int sig) {
+			c->received = 1;
+			c->signal_num = sig;
+			printk("[Child PID=%d] Signal %d received!\n", proc->pid, sig);
+		}
+		signal(SIGINT, handler);
+
+		printk("[Child PID=%d] Waiting for signal (5 seconds)...\n", proc->pid);
+		int count = 0;
+		while (!c->received && count < 500) {
+			/* Check for pending signals */
+			signal_check_pending();
+			k_msleep(10);
+			count++;
+		}
+
+		if (c->received) {
+			printk("[Child PID=%d] SUCCESS - Signal %d was delivered\n",
+			       proc->pid, c->signal_num);
+			return (void *)0;
+		} else {
+			printk("[Child PID=%d] TIMEOUT - No signal received\n", proc->pid);
+			return (void *)-1;
+		}
+	}
+
+	/* Create child process */
+	ctx.received = 0;
+	ctx.signal_num = 0;
+
+	printk("[Parent] Creating child process...\n");
+	pid_t child_pid = new_task("signal_test_child", child_func, &ctx);
+	if (child_pid < 0) {
+		printk("[Parent] Failed to create child: %d\n", child_pid);
+		return child_pid;
+	}
+
+	printk("[Parent] Child created with PID=%d\n", child_pid);
+
+	/* Give child time to install handler */
+	k_msleep(100);
+
+	/* Send signal to child */
+	printk("[Parent] Sending SIGINT to child (PID=%d)...\n", child_pid);
+	int ret = kill(child_pid, SIGINT);
+	if (ret != 0) {
+		printk("[Parent] kill() failed: %d\n", ret);
+		return ret;
+	}
+	printk("[Parent] Signal sent successfully\n");
+
+	/* Wait for child to complete */
+	printk("[Parent] Waiting for child to exit...\n");
+	int status;
+	pid_t waited = waitpid(child_pid, &status, 0);
+
+	if (waited == child_pid) {
+		printk("[Parent] Child exited with status %d\n", status);
+		if (status == 0) {
+			printk("\n=== TEST PASSED ===\n");
+			printk("Signal was successfully delivered and handled!\n");
+		} else {
+			printk("\n=== TEST FAILED ===\n");
+		}
+	} else {
+		printk("[Parent] waitpid failed: %d\n", waited);
+		return -1;
+	}
+
+	return status;
+}
+
+/* Register commands using the macro */
+SHELL_CMD_REGISTER(hello, "Print hello message", cmd_hello);
+SHELL_CMD_REGISTER(echo, "Echo arguments", cmd_echo);
+SHELL_CMD_REGISTER(ps, "List processes", cmd_ps);
+SHELL_CMD_REGISTER(sleep, "Sleep for milliseconds", cmd_sleep);
+SHELL_CMD_REGISTER(test, "Process creation test", cmd_test);
+SHELL_CMD_REGISTER(loop, "Infinite loop for signal testing", cmd_loop);
+SHELL_CMD_REGISTER(sigint, "Send SIGINT to foreground process", cmd_sigint);
+SHELL_CMD_REGISTER(test_signal, "Self-test signal delivery", cmd_test_signal);
+SHELL_CMD_REGISTER(getpid, "Show process ID", cmd_getpid);
+SHELL_CMD_REGISTER(info, "Show process info", cmd_info);
+SHELL_CMD_REGISTER(uptime, "Show system uptime", cmd_uptime);
+SHELL_CMD_REGISTER(mem, "Show memory information", cmd_mem);
+SHELL_CMD_REGISTER(free, "Show free memory", cmd_free);
+SHELL_CMD_REGISTER(clear, "Clear screen", cmd_clear);
+SHELL_CMD_REGISTER(version, "Show system version", cmd_version);
+SHELL_CMD_REGISTER(date, "Show current tick count", cmd_date);
+SHELL_CMD_REGISTER(kill, "Terminate a process", cmd_kill);
+SHELL_CMD_REGISTER(benchmark, "Run CPU benchmark", cmd_benchmark);
+SHELL_CMD_REGISTER(stress, "Stress test process creation", cmd_stress);
+SHELL_CMD_REGISTER(reboot, "Reboot the system", cmd_reboot);
+SHELL_CMD_REGISTER(help, "Show available commands", cmd_help);
+SHELL_CMD_REGISTER(upload_hex, "Upload ANL binary via hex", cmd_upload_hex);
+SHELL_CMD_REGISTER(load, "Load ANL binary", cmd_load);
+SHELL_CMD_REGISTER(fork, "Fork child processes", cmd_fork);
