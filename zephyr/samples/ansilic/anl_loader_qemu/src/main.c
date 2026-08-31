@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include "anl_loader.h"
 #include "shell_process.h"
+#include "signal.h"
 
 static const struct device *uart_dev;
 
@@ -54,6 +55,35 @@ static int readline(char *buf, int maxlen)
         unsigned char c;
         while (uart_poll_in(uart_dev, &c) != 0)
             k_sleep(K_MSEC(1));
+
+        /* Handle Ctrl+C (0x03) - send SIGINT to foreground process */
+        if (c == 0x03) {
+            uart_puts("^C\r\n");
+            pid_t fg_pgid = signal_get_foreground_pgid();
+            if (fg_pgid > 0) {
+                printk("[Shell] Sending SIGINT to PID %d\n", fg_pgid);
+                kill(fg_pgid, SIGINT);
+            }
+            buf[i] = '\0';
+            return i;
+        }
+
+        /* Handle Ctrl+D (0x04) - send SIGTSTP to foreground process */
+        if (c == 0x04) {
+            uart_puts("^D\r\n");
+            pid_t fg_pgid = signal_get_foreground_pgid();
+            if (fg_pgid > 0) {
+                printk("[Shell] Sending SIGTSTP (suspend) to PID %d\n", fg_pgid);
+                kill(fg_pgid, SIGTSTP);
+            } else {
+                /* No foreground process - EOF behavior */
+                buf[i] = '\0';
+                return i;
+            }
+            buf[i] = '\0';
+            return i;
+        }
+
         if (c == '\r' || c == '\n') {
             buf[i] = '\0';
             uart_puts("\r\n");
@@ -171,16 +201,124 @@ static void cmd_fork(char *args)
 /* ps: list processes */
 static void cmd_ps(void)
 {
-    printk("PID  PPID  NAME\n");
+    printk("PID  PPID  STATE       NAME\n");
     for (int i = 0; i < CONFIG_MAX_PROCESS_COUNT; i++) {
         struct z_process *proc = process_get(i);
         if (proc && proc->pid > 0) {
-            printk("%-4d %-4d  (pid slot %d)\n",
+            const char *state = "running";
+            if (signal_is_suspended(proc->pid) > 0) {
+                state = "suspended";
+            }
+            printk("%-4d %-4d  %-10s  (pid slot %d)\n",
                    proc->pid,
                    proc->parent ? proc->parent->pid : 0,
+                   state,
                    i);
         }
     }
+
+    pid_t suspended_pid = signal_get_suspended_fg_pid();
+    if (suspended_pid > 0) {
+        printk("\nSuspended foreground process: %d (use 'fg' to resume)\n", suspended_pid);
+    }
+}
+
+/* fg: resume suspended foreground process */
+static void cmd_fg(void)
+{
+    pid_t suspended_pid = signal_get_suspended_fg_pid();
+
+    if (suspended_pid <= 0) {
+        uart_puts("No suspended foreground process\n");
+        return;
+    }
+
+    printk("Resuming process PID=%d...\n", suspended_pid);
+    int ret = signal_resume_process(suspended_pid);
+
+    if (ret == 0) {
+        printk("Process %d resumed and brought to foreground\n", suspended_pid);
+    } else {
+        printk("Failed to resume process %d: %d\n", suspended_pid, ret);
+    }
+}
+
+/* loop: test command that loops and can be suspended */
+static void *loop_thread(void *arg)
+{
+    int duration = (int)(intptr_t)arg;
+    struct z_process *proc = process_current();
+
+    if (duration <= 0) {
+        printk("[loop] Started in PID=%d, infinite loop\n", proc->pid);
+    } else {
+        printk("[loop] Started in PID=%d, will loop %d times\n", proc->pid, duration);
+    }
+    printk("[loop] Press Ctrl+D to suspend, or Ctrl+C to interrupt\n");
+
+    /* Set this process as foreground */
+    signal_set_foreground_pgid(proc->pid);
+
+    /* Install signal handlers */
+    volatile int interrupted = 0;
+    void sigint_handler(int sig) {
+        interrupted = 1;
+        printk("\n[loop] Interrupted by SIGINT\n");
+    }
+    signal(SIGINT, sigint_handler);
+
+    /* Infinite or counted loop with CPU-intensive work to slow down QEMU */
+    int count = 0;
+    while (!interrupted) {
+        if (duration > 0 && count >= duration) {
+            break;
+        }
+
+        if (count % 100 == 0) {
+            printk(".");  /* Print dot every 100 iterations */
+        }
+
+        /* Do some CPU work to consume time even in QEMU */
+        volatile int dummy = 0;
+        for (int i = 0; i < 10000; i++) {
+            dummy += i * i;
+        }
+
+        /* Check for pending signals frequently */
+        signal_check_pending();
+
+        count++;
+    }
+
+    if (!interrupted) {
+        printk("\n[loop] Completed normally after %d iterations\n", count);
+    }
+
+    /* Clear foreground */
+    signal_set_foreground_pgid(0);
+
+    return (void *)(intptr_t)0;
+}
+
+static void cmd_loop(char *args)
+{
+    int duration = 1000;  /* default 1000 iterations */
+
+    if (args && args[0]) {
+        duration = atoi(args);
+        if (duration <= 0) duration = 1000;
+    }
+
+    /* Create a new process for the loop */
+    pid_t pid = new_task("loop_test", loop_thread, (void *)(intptr_t)duration);
+
+    if (pid < 0) {
+        printk("Failed to create loop process: %d\n", pid);
+        return;
+    }
+
+    printk("Loop process started with PID=%d (running in background)\n", pid);
+    /* Don't waitpid() here - let it run in background so shell can handle Ctrl+D */
 }
 
 int main(void)
@@ -192,7 +330,12 @@ int main(void)
     }
 
     uart_puts("ANL loader + fork demo ready.\n");
-    uart_puts("Commands: load <name> <hexdata> | fork [nchildren] [iters] | ps\n");
+    uart_puts("Commands:\n");
+    uart_puts("  load <name> <hexdata> - Load ANL module\n");
+    uart_puts("  fork [nchildren] [iters] - Fork test\n");
+    uart_puts("  loop [seconds] - Loop test (Ctrl+D to suspend, Ctrl+C to stop)\n");
+    uart_puts("  fg - Resume suspended process\n");
+    uart_puts("  ps - List processes\n");
     uart_puts("anl> ");
 
     static char line[8192 + 64];
@@ -204,8 +347,12 @@ int main(void)
             cmd_load(line + 5);
         else if (strncmp(line, "fork", 4) == 0)
             cmd_fork(line[4] == ' ' ? line + 5 : "");
+        else if (strncmp(line, "loop", 4) == 0)
+            cmd_loop(line[4] == ' ' ? line + 5 : "");
         else if (strcmp(line, "ps") == 0)
             cmd_ps();
+        else if (strcmp(line, "fg") == 0)
+            cmd_fg();
         else
             uart_puts("unknown command\n");
 

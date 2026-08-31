@@ -12,4 +12,5 @@ target_sources(app PRIVATE
     src/debug.c
     src/bytecode_vm.c
     src/anl_loader.c
+    src/signal.c
 )

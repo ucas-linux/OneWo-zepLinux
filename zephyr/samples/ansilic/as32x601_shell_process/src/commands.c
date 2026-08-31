@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include "shell_process.h"
 #include "anl_loader.h"
+#include "signal.h"
 
 /**
  * @brief Hello command - prints greeting with process info
@@ -500,6 +501,8 @@ static int cmd_help(int argc, char **argv)
 	printk("  upload_hex - Upload ANL binary via hex string\n");
 	printk("  load       - Load ANL binary (alias for upload_hex)\n");
 	printk("  fork       - Fork child processes\n");
+	printk("  loop       - Infinite loop for signal testing\n");
+	printk("  sigint     - Send SIGINT to foreground process\n");
 
 	return 0;
 }
@@ -581,12 +584,181 @@ static int cmd_load(int argc, char **argv)
 	return cmd_upload_hex(argc, argv);
 }
 
+/**
+ * @brief Loop command - infinite loop for signal testing
+ * Sets itself as foreground and loops until interrupted by signal
+ */
+static int cmd_loop(int argc, char **argv)
+{
+	struct z_process *proc = process_current();
+
+	/* Parse duration argument (default 10 seconds) */
+	int duration_sec = 10;
+	if (argc > 1) {
+		duration_sec = atoi(argv[1]);
+		if (duration_sec <= 0) duration_sec = 10;
+	}
+
+	printk("Loop started (PID %d). Running for %d seconds...\n", proc->pid, duration_sec);
+	printk("Use 'sigint' command from another terminal to interrupt.\n");
+
+	/* Set this process as foreground to receive signals */
+	signal_set_foreground_pgid(proc->pid);
+
+	/* Install signal handler */
+	volatile int interrupted = 0;
+	void handler(int sig) {
+		interrupted = 1;
+		printk("\nLoop interrupted by signal %d\n", sig);
+	}
+	signal(SIGINT, handler);
+
+	/* Loop for specified duration or until signal received */
+	int count = 0;
+	int max_count = duration_sec * 100;  /* 10ms per iteration */
+	while (!interrupted && count < max_count) {
+		if (count % 100 == 0) {
+			printk(".");
+		}
+		/* Check for pending signals */
+		signal_check_pending();
+		k_msleep(10);
+		count++;
+	}
+
+	if (!interrupted) {
+		printk("\nLoop completed (no signal received)\n");
+	}
+	printk("Loop exiting.\n");
+	return 0;
+}
+
+/**
+ * @brief sigint command - send SIGINT to foreground process
+ */
+static int cmd_sigint(int argc, char **argv)
+{
+	pid_t fg_pgid = signal_get_foreground_pgid();
+
+	if (fg_pgid <= 0) {
+		printk("No foreground process\n");
+		return -ESRCH;
+	}
+
+	printk("Sending SIGINT to foreground process (PID=%d)\n", fg_pgid);
+	int ret = kill(fg_pgid, SIGINT);
+
+	if (ret == 0) {
+		printk("Signal delivered successfully\n");
+	} else {
+		printk("Failed to deliver signal: %d\n", ret);
+	}
+
+	return ret;
+}
+
+/**
+ * @brief test_signal command - self-test signal delivery
+ * Creates a child process that waits for signal, then sends it
+ */
+static int cmd_test_signal(int argc, char **argv)
+{
+	printk("=== Signal Delivery Self-Test ===\n");
+
+	/* Child process that waits for signal */
+	struct child_context {
+		volatile int received;
+		int signal_num;
+	};
+	static struct child_context ctx = {0};
+
+	void *child_func(void *arg) {
+		struct child_context *c = (struct child_context *)arg;
+		struct z_process *proc = process_current();
+
+		printk("[Child PID=%d] Installing signal handler\n", proc->pid);
+
+		void handler(int sig) {
+			c->received = 1;
+			c->signal_num = sig;
+			printk("[Child PID=%d] Signal %d received!\n", proc->pid, sig);
+		}
+		signal(SIGINT, handler);
+
+		printk("[Child PID=%d] Waiting for signal (5 seconds)...\n", proc->pid);
+		int count = 0;
+		while (!c->received && count < 500) {
+			/* Check for pending signals */
+			signal_check_pending();
+			k_msleep(10);
+			count++;
+		}
+
+		if (c->received) {
+			printk("[Child PID=%d] SUCCESS - Signal %d was delivered\n",
+			       proc->pid, c->signal_num);
+			return (void *)0;
+		} else {
+			printk("[Child PID=%d] TIMEOUT - No signal received\n", proc->pid);
+			return (void *)-1;
+		}
+	}
+
+	/* Create child process */
+	ctx.received = 0;
+	ctx.signal_num = 0;
+
+	printk("[Parent] Creating child process...\n");
+	pid_t child_pid = new_task("signal_test_child", child_func, &ctx);
+	if (child_pid < 0) {
+		printk("[Parent] Failed to create child: %d\n", child_pid);
+		return child_pid;
+	}
+
+	printk("[Parent] Child created with PID=%d\n", child_pid);
+
+	/* Give child time to install handler */
+	k_msleep(100);
+
+	/* Send signal to child */
+	printk("[Parent] Sending SIGINT to child (PID=%d)...\n", child_pid);
+	int ret = kill(child_pid, SIGINT);
+	if (ret != 0) {
+		printk("[Parent] kill() failed: %d\n", ret);
+		return ret;
+	}
+	printk("[Parent] Signal sent successfully\n");
+
+	/* Wait for child to complete */
+	printk("[Parent] Waiting for child to exit...\n");
+	int status;
+	pid_t waited = waitpid(child_pid, &status, 0);
+
+	if (waited == child_pid) {
+		printk("[Parent] Child exited with status %d\n", status);
+		if (status == 0) {
+			printk("\n=== TEST PASSED ===\n");
+			printk("Signal was successfully delivered and handled!\n");
+		} else {
+			printk("\n=== TEST FAILED ===\n");
+		}
+	} else {
+		printk("[Parent] waitpid failed: %d\n", waited);
+		return -1;
+	}
+
+	return status;
+}
+
 /* Register commands using the macro */
 SHELL_CMD_REGISTER(hello, "Print hello message", cmd_hello);
 SHELL_CMD_REGISTER(echo, "Echo arguments", cmd_echo);
 SHELL_CMD_REGISTER(ps, "List processes", cmd_ps);
 SHELL_CMD_REGISTER(sleep, "Sleep for milliseconds", cmd_sleep);
 SHELL_CMD_REGISTER(test, "Process creation test", cmd_test);
+SHELL_CMD_REGISTER(loop, "Infinite loop for signal testing", cmd_loop);
+SHELL_CMD_REGISTER(sigint, "Send SIGINT to foreground process", cmd_sigint);
+SHELL_CMD_REGISTER(test_signal, "Self-test signal delivery", cmd_test_signal);
 SHELL_CMD_REGISTER(getpid, "Show process ID", cmd_getpid);
 SHELL_CMD_REGISTER(info, "Show process info", cmd_info);
 SHELL_CMD_REGISTER(uptime, "Show system uptime", cmd_uptime);

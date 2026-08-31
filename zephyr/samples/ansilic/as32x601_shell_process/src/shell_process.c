@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "shell_process.h"
+#include "signal.h"
 
 #define MAX_COMMANDS 32
 #define TASK_STACK_SIZE 2048
@@ -132,6 +133,14 @@ pid_t new_task(const char *name, void *(*run)(void *), void *arg)
 		return -ENOMEM;
 	}
 	//printk("DEBUG: new_task - child PID = %d\n", child->pid);
+
+	/* Allocate and initialize signal state for child process */
+	child->signal_state = k_malloc(sizeof(struct process_signal));
+	if (!child->signal_state) {
+		process_exit(child, -ENOMEM);
+		return -ENOMEM;
+	}
+	signal_process_init(child);
 
 	/* Allocate thread stack from pool */
 	k_thread_stack_t *stack = NULL;
@@ -254,7 +263,8 @@ pid_t waitpid(pid_t pid, int *status, int options)
 
 	/* Wait for exit message from the specified process */
 	while (1) {
-		ret = k_msgq_get(&process_exit_queue, &msg, K_FOREVER);
+		/* Use timeout to allow interruption checking */
+		ret = k_msgq_get(&process_exit_queue, &msg, K_MSEC(100));
 		if (ret == 0) {
 			//printk("DEBUG: waitpid - got exit msg for PID %d\n", msg.pid);
 			if (msg.pid == pid || pid == -1) {
@@ -323,6 +333,7 @@ pid_t waitpid(pid_t pid, int *status, int options)
 			k_msgq_put(&process_exit_queue, &msg, K_NO_WAIT);
 			k_yield();
 		}
+		/* Timeout - allow caller to check for interruption */
 	}
 
 	return -ECHILD;

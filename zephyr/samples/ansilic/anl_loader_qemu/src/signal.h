@@ -158,6 +158,37 @@ pid_t signal_get_foreground_pgid(void);
  */
 struct process_signal *signal_get_state(struct z_process *proc);
 
+/**
+ * @brief Suspend (stop) a process
+ *
+ * @param pid Process ID to suspend
+ * @return 0 on success, negative errno on failure
+ */
+int signal_suspend_process(pid_t pid);
+
+/**
+ * @brief Resume (continue) a suspended process
+ *
+ * @param pid Process ID to resume
+ * @return 0 on success, negative errno on failure
+ */
+int signal_resume_process(pid_t pid);
+
+/**
+ * @brief Check if a process is suspended
+ *
+ * @param pid Process ID to check
+ * @return 1 if suspended, 0 if not, negative errno on error
+ */
+int signal_is_suspended(pid_t pid);
+
+/**
+ * @brief Get suspended foreground process ID
+ *
+ * @return PID of suspended foreground process, or 0 if none
+ */
+pid_t signal_get_suspended_fg_pid(void);
+
 #ifdef __cplusplus
 }
 #endif
