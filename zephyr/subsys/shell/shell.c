@@ -17,6 +17,13 @@
 #include "shell_vt100.h"
 #include "shell_wildcard.h"
 
+/* Signal support for process-based shell */
+#ifdef CONFIG_PROCESS
+extern pid_t signal_get_foreground_pgid(void);
+extern int kill(pid_t pid, int signo);
+#define SIGINT 2
+#endif
+
 /* 2 == 1 char for cmd + 1 char for '\0' */
 #if (CONFIG_SHELL_CMD_BUFF_SIZE < 2)
 	#error too small CONFIG_SHELL_CMD_BUFF_SIZE
@@ -894,6 +901,22 @@ static void ctrl_metakeys_handle(const struct shell *sh, char data)
 		break;
 
 	case SHELL_VT100_ASCII_CTRL_C: /* CTRL + C */
+#ifdef CONFIG_PROCESS
+		/* Send SIGINT to foreground process if exists */
+		{
+			pid_t fg_pgid = signal_get_foreground_pgid();
+			if (fg_pgid > 0) {
+				shell_fprintf(sh, SHELL_NORMAL, "^C\n");
+				int ret = kill(fg_pgid, SIGINT);
+				if (ret == 0) {
+					shell_fprintf(sh, SHELL_NORMAL,
+						      "[Shell] SIGINT sent to PID %d\n", fg_pgid);
+				}
+				break;
+			}
+		}
+#endif
+		/* Default Ctrl+C behavior - cancel current line */
 		z_shell_op_cursor_end_move(sh);
 		if (!z_shell_cursor_in_empty_line(sh)) {
 			z_cursor_next_line_move(sh);
@@ -903,6 +926,26 @@ static void ctrl_metakeys_handle(const struct shell *sh, char data)
 		break;
 
 	case SHELL_VT100_ASCII_CTRL_D: /* CTRL + D */
+#ifdef CONFIG_PROCESS
+		/* Send SIGTSTP (suspend) to foreground process if exists */
+		{
+			extern int kill(pid_t pid, int sig);
+			extern pid_t signal_get_foreground_pgid(void);
+			#define SIGTSTP 20
+
+			pid_t fg_pgid = signal_get_foreground_pgid();
+			if (fg_pgid > 0) {
+				shell_fprintf(sh, SHELL_NORMAL, "^D\n");
+				int ret = kill(fg_pgid, SIGTSTP);
+				if (ret == 0) {
+					shell_fprintf(sh, SHELL_NORMAL,
+						      "[Shell] Process %d suspended. Use 'fg' to resume.\n", fg_pgid);
+				}
+				break;
+			}
+		}
+#endif
+		/* Default Ctrl+D behavior - delete character */
 		z_shell_op_char_delete(sh);
 		break;
 

@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include "shell_process.h"
+#include "signal.h"
 
 #define MAX_COMMANDS 16
 #define TASK_STACK_SIZE 2048
@@ -74,6 +75,20 @@ pid_t new_task(const char *name, void *(*run)(void *), void *arg)
 
 	struct z_process *child = process_create(parent);
 	if (!child) return -ENOMEM;
+
+	/* Allocate and initialize signal state */
+	child->signal_state = k_malloc(sizeof(struct process_signal));
+	if (!child->signal_state) {
+		process_exit(child, -ENOMEM);
+		return -ENOMEM;
+	}
+
+	if (signal_process_init(child) != 0) {
+		k_free(child->signal_state);
+		child->signal_state = NULL;
+		process_exit(child, -ENOMEM);
+		return -ENOMEM;
+	}
 
 	k_thread_stack_t *stack = NULL;
 	int stack_index = -1;
