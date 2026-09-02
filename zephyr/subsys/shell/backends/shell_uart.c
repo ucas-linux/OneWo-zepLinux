@@ -20,8 +20,10 @@ typedef int pid_t;
 extern pid_t signal_get_foreground_pgid(void);
 extern int kill(pid_t pid, int signo);
 #define SIGINT 2
-/* Use Ctrl+C (0x03) for signal delivery */
+#define SIGTSTP 20
+/* Use Ctrl+C (0x03) for SIGINT, Ctrl+D (0x04) for SIGTSTP */
 #define CTRL_C 0x03  /* Ctrl+C */
+#define CTRL_D 0x04  /* Ctrl+D */
 
 #define LOG_MODULE_NAME shell_uart
 LOG_MODULE_REGISTER(shell_uart);
@@ -302,13 +304,23 @@ static void polling_rx_timeout_handler(struct k_timer *timer)
 	struct shell_uart_polling *sh_uart = k_timer_user_data_get(timer);
 
 	while (uart_poll_in(sh_uart->common.dev, &c) == 0) {
-		/* Check for Ctrl+C (0x03) and send signal to foreground process */
+		/* Check for Ctrl+C (0x03) and send SIGINT to foreground process */
 		if (c == CTRL_C) {
 			pid_t fg_pgid = signal_get_foreground_pgid();
 			if (fg_pgid > 0) {
 				/* Send SIGINT to foreground process */
 				kill(fg_pgid, SIGINT);
 				/* Don't put Ctrl+C in ring buffer - consume it */
+				continue;
+			}
+		}
+		/* Check for Ctrl+D (0x04) and send SIGTSTP to foreground process */
+		if (c == CTRL_D) {
+			pid_t fg_pgid = signal_get_foreground_pgid();
+			if (fg_pgid > 0) {
+				/* Send SIGTSTP (suspend) to foreground process */
+				kill(fg_pgid, SIGTSTP);
+				/* Don't put Ctrl+D in ring buffer - consume it */
 				continue;
 			}
 		}
