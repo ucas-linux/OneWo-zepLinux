@@ -14,10 +14,30 @@
 static pid_t foreground_pgid = 0;
 static struct k_mutex foreground_lock;
 
+/* Suspended process tracking */
+static pid_t suspended_fg_pid = 0;
+static struct k_mutex suspended_lock;
+
 /* Default signal actions */
 static void default_signal_handler(int sig)
 {
 	struct z_process *proc = process_current();
+
+	/* SIGTSTP - suspend process */
+	if (sig == SIGTSTP) {
+		printk("[SIGNAL] Process PID=%d received SIGTSTP, calling suspend...\n", proc ? proc->pid : 0);
+		int ret = signal_suspend_process(proc ? proc->pid : 0);
+		printk("[SIGNAL] suspend returned %d (THIS LINE SHOULD NOT APPEAR IF SUSPENDED)\n", ret);
+		return;
+	}
+
+	/* SIGCONT - continue process */
+	if (sig == SIGCONT) {
+		printk("[SIGNAL] Process PID=%d continued\n", proc ? proc->pid : 0);
+		/* Process is already running if it's handling this signal */
+		return;
+	}
+
 	printk("[SIGNAL] Process PID=%d received signal %d, default action: terminate\n",
 	       proc ? proc->pid : 0, sig);
 
@@ -50,8 +70,9 @@ int signal_process_init(struct z_process *proc)
 		sig->handlers[i] = SIG_DFL;
 	}
 
-	/* SIGCHLD is ignored by default */
+	/* SIGCHLD and SIGCONT are ignored by default in some contexts */
 	sig->handlers[SIGCHLD] = SIG_IGN;
+	/* SIGCONT default action is to continue - handled in default_signal_handler */
 
 	return 0;
 }
@@ -103,7 +124,8 @@ int kill(pid_t pid, int sig)
 
 	k_mutex_unlock(&psig->lock);
 
-	printk("[SIGNAL] Sent signal %d to process PID=%d\n", sig, pid);
+	printk("[SIGNAL] kill(%d, %d) SUCCESS: pending_signals=0x%08x\n",
+	       pid, sig, psig->pending_signals);
 
 	return 0;
 }
@@ -247,6 +269,12 @@ int signal_check_pending(void)
 	/* Get unblocked pending signals */
 	uint32_t deliverable = psig->pending_signals & ~psig->blocked_signals;
 
+	/* Debug: print if any signals are pending */
+	if (psig->pending_signals != 0) {
+		printk("[SIGNAL] PID=%d check_pending: pending=0x%08x, blocked=0x%08x, deliverable=0x%08x\n",
+		       proc->pid, psig->pending_signals, psig->blocked_signals, deliverable);
+	}
+
 	if (deliverable == 0) {
 		k_mutex_unlock(&psig->lock);
 		return 0;
@@ -326,12 +354,114 @@ struct process_signal *signal_get_state(struct z_process *proc)
 }
 
 /**
+ * @brief Suspend (stop) a process
+ */
+int signal_suspend_process(pid_t pid)
+{
+	if (pid <= 0) {
+		return -EINVAL;
+	}
+
+	struct z_process *proc = process_get(pid);
+	if (!proc || !proc->main_thread) {
+		return -ESRCH;
+	}
+
+	printk("[SIGNAL] Suspending process PID=%d\n", pid);
+
+	/* Track suspended foreground process BEFORE suspending */
+	k_mutex_lock(&suspended_lock, K_FOREVER);
+	if (pid == foreground_pgid) {
+		suspended_fg_pid = pid;
+		/* Clear foreground since it's now suspended */
+		k_mutex_lock(&foreground_lock, K_FOREVER);
+		foreground_pgid = 0;
+		k_mutex_unlock(&foreground_lock);
+		printk("[SIGNAL] Foreground process suspended. Use 'fg' to resume.\n");
+	}
+	k_mutex_unlock(&suspended_lock);
+
+	/* Suspend the main thread - THIS MUST BE LAST!
+	 * After this call, if we're suspending ourselves, we stop executing here.
+	 * When resumed, execution will continue after k_thread_suspend returns.
+	 */
+	k_thread_suspend(proc->main_thread);
+
+	return 0;
+}
+
+/**
+ * @brief Resume (continue) a suspended process
+ */
+int signal_resume_process(pid_t pid)
+{
+	if (pid <= 0) {
+		return -EINVAL;
+	}
+
+	struct z_process *proc = process_get(pid);
+	if (!proc || !proc->main_thread) {
+		return -ESRCH;
+	}
+
+	printk("[SIGNAL] Resuming process PID=%d\n", pid);
+
+	/* Resume the main thread */
+	k_thread_resume(proc->main_thread);
+
+	/* Restore as foreground process */
+	k_mutex_lock(&suspended_lock, K_FOREVER);
+	if (suspended_fg_pid == pid) {
+		suspended_fg_pid = 0;
+		signal_set_foreground_pgid(pid);
+	}
+	k_mutex_unlock(&suspended_lock);
+
+	/* Send SIGCONT to the process */
+	kill(pid, SIGCONT);
+
+	return 0;
+}
+
+/**
+ * @brief Check if a process is suspended
+ */
+int signal_is_suspended(pid_t pid)
+{
+	if (pid <= 0) {
+		return -EINVAL;
+	}
+
+	struct z_process *proc = process_get(pid);
+	if (!proc || !proc->main_thread) {
+		return -ESRCH;
+	}
+
+	/* Check if thread is suspended */
+	uint8_t state = proc->main_thread->base.thread_state;
+	return (state & _THREAD_SUSPENDED) ? 1 : 0;
+}
+
+/**
+ * @brief Get suspended foreground process ID
+ */
+pid_t signal_get_suspended_fg_pid(void)
+{
+	k_mutex_lock(&suspended_lock, K_FOREVER);
+	pid_t pid = suspended_fg_pid;
+	k_mutex_unlock(&suspended_lock);
+	return pid;
+}
+
+/**
  * @brief Initialize signal subsystem
  */
 static int signal_subsystem_init(void)
 {
 	k_mutex_init(&foreground_lock);
+	k_mutex_init(&suspended_lock);
 	foreground_pgid = 0;
+	suspended_fg_pid = 0;
 	return 0;
 }
 
