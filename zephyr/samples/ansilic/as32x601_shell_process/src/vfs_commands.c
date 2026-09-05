@@ -26,14 +26,15 @@ static int vfs_mount_tmp(void)
 {
 	int ret;
 
-	/* Initialize and register ramfs driver first */
+	/* Initialize and register ramfs driver (vfs_subsystem_init may have done this already) */
 	ret = ramfs_init();
-	if (ret != 0) {
+	if (ret != 0 && ret != -EEXIST) {
 		printk("VFS: failed to initialize ramfs driver: %d\n", ret);
 		return 0; /* non-fatal: shell still boots */
 	}
 
 	/* Now mount ramfs at /tmp */
+	printk("VFS: Mounting ramfs at /tmp...\n");
 	ret = fs_mount(&tmp_mnt);
 	if (ret != 0) {
 		printk("VFS: failed to mount ramfs at /tmp: %d\n", ret);
@@ -132,6 +133,52 @@ static int cmd_cat_vfs(int argc, char **argv)
 }
 
 /* ------------------------------------------------------------------ */
+/* mount_status - debug command to check mount status                 */
+/* ------------------------------------------------------------------ */
+static int cmd_mount_status(int argc, char **argv)
+{
+	printk("Mounted filesystems:\n");
+
+	/* Try to access /tmp to see if it's mounted */
+	struct fs_dir_t dir;
+	fs_dir_t_init(&dir);
+	int ret = fs_opendir(&dir, "/tmp");
+	if (ret == 0) {
+		printk("  /tmp - accessible (mounted)\n");
+		fs_closedir(&dir);
+	} else {
+		printk("  /tmp - not accessible: %d\n", ret);
+	}
+
+	return 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* remount_tmp - debug command to retry mounting ramfs                */
+/* ------------------------------------------------------------------ */
+static int cmd_remount_tmp(int argc, char **argv)
+{
+	int ret;
+
+	printk("Re-initializing ramfs driver...\n");
+	ret = ramfs_init();
+	if (ret == -EEXIST) {
+		ret = 0; /* already registered, that's fine */
+	}
+	printk("ramfs_init() returned: %d\n", ret);
+
+	printk("Attempting to mount ramfs at /tmp...\n");
+	ret = fs_mount(&tmp_mnt);
+	printk("fs_mount() returned: %d\n", ret);
+
+	if (ret == 0) {
+		printk("Successfully mounted!\n");
+	}
+
+	return ret;
+}
+
+/* ------------------------------------------------------------------ */
 /* Register commands                                                   */
 /* ------------------------------------------------------------------ */
 static const struct shell_cmd vfs_cmd_mkdir = {
@@ -146,10 +193,24 @@ static const struct shell_cmd vfs_cmd_cat = {
 	.brief = "Print VFS file",
 };
 
+static const struct shell_cmd vfs_cmd_mount_status = {
+	.name  = "mount_status",
+	.exec  = cmd_mount_status,
+	.brief = "Show mount status",
+};
+
+static const struct shell_cmd vfs_cmd_remount = {
+	.name  = "remount_tmp",
+	.exec  = cmd_remount_tmp,
+	.brief = "Retry mounting /tmp",
+};
+
 static int register_vfs_commands(void)
 {
 	shell_cmd_register(&vfs_cmd_mkdir);
 	shell_cmd_register(&vfs_cmd_cat);
+	shell_cmd_register(&vfs_cmd_mount_status);
+	shell_cmd_register(&vfs_cmd_remount);
 	return 0;
 }
 

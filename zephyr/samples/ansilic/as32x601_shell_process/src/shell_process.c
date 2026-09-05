@@ -17,7 +17,7 @@
 #include "shell_process.h"
 #include "signal.h"
 
-#define MAX_COMMANDS 32
+#define MAX_COMMANDS 48
 #define TASK_STACK_SIZE 2048
 
 /* Command registry */

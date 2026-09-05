@@ -371,7 +371,7 @@ SHELL_CMD_ARG_REGISTER(cat, NULL, "Print VFS file",
 
 /* Bytecode VM shell commands */
 SHELL_CMD_ARG_REGISTER(ls, NULL, "List programs and commands",
-                       shell_ls_handler, 1, 0);
+                       shell_ls_handler, 1, 10);
 SHELL_CMD_ARG_REGISTER(upload, NULL, "Upload bytecode program",
                        shell_upload_handler, 3, 0);
 SHELL_CMD_ARG_REGISTER(upload_hex, NULL, "Upload bytecode from hex string",
