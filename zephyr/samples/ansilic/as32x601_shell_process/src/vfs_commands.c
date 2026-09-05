@@ -10,6 +10,9 @@
 #include <errno.h>
 #include "shell_process.h"
 
+/* ramfs_init() is defined in zephyr/subsys/fs/ramfs/ramfs.h */
+extern int ramfs_init(void);
+
 #define VFS_TMP_MOUNT "/tmp"
 
 static struct fs_mount_t tmp_mnt = {
@@ -21,8 +24,17 @@ static struct fs_mount_t tmp_mnt = {
 
 static int vfs_mount_tmp(void)
 {
-	int ret = fs_mount(&tmp_mnt);
+	int ret;
 
+	/* Initialize and register ramfs driver first */
+	ret = ramfs_init();
+	if (ret != 0) {
+		printk("VFS: failed to initialize ramfs driver: %d\n", ret);
+		return 0; /* non-fatal: shell still boots */
+	}
+
+	/* Now mount ramfs at /tmp */
+	ret = fs_mount(&tmp_mnt);
 	if (ret != 0) {
 		printk("VFS: failed to mount ramfs at /tmp: %d\n", ret);
 	} else {
