@@ -10,6 +10,7 @@
 #include <zephyr/kernel/process.h>
 #include <zephyr/sys/reboot.h>
 #include <zephyr/version.h>
+#include <zephyr/fs/fs.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -54,6 +55,53 @@ static int cmd_hello(int argc, char **argv)
  */
 static int cmd_echo(int argc, char **argv)
 {
+	/* Detect redirect: echo <text...> > <file> */
+	int redir_idx = -1;
+
+	for (int i = 1; i < argc; i++) {
+		if (strcmp(argv[i], ">") == 0 && i + 1 < argc) {
+			redir_idx = i;
+			break;
+		}
+	}
+
+	if (redir_idx > 0) {
+		/* Build the output string from tokens before '>' */
+		char buf[256];
+		int pos = 0;
+
+		for (int i = 1; i < redir_idx && pos < (int)sizeof(buf) - 2; i++) {
+			int n = strlen(argv[i]);
+
+			if (pos + n >= (int)sizeof(buf) - 2) {
+				n = (int)sizeof(buf) - 2 - pos;
+			}
+			memcpy(buf + pos, argv[i], n);
+			pos += n;
+			if (i < redir_idx - 1 && pos < (int)sizeof(buf) - 2) {
+				buf[pos++] = ' ';
+			}
+		}
+		buf[pos++] = '\n';
+		buf[pos]   = '\0';
+
+		/* Write to file */
+		const char *path = argv[redir_idx + 1];
+		struct fs_file_t f;
+
+		fs_file_t_init(&f);
+		int ret = fs_open(&f, path, FS_O_CREATE | FS_O_RDWR | FS_O_TRUNC);
+
+		if (ret != 0) {
+			printk("echo: cannot open '%s': %d\n", path, ret);
+			return ret;
+		}
+		fs_write(&f, buf, pos);
+		fs_close(&f);
+		return 0;
+	}
+
+	/* Normal echo to console */
 	for (int i = 1; i < argc; i++) {
 		printk("%s", argv[i]);
 		if (i < argc - 1) {
@@ -70,30 +118,77 @@ static int cmd_echo(int argc, char **argv)
  */
 static int cmd_ps(int argc, char **argv)
 {
-	printk("=== DEBUG: cmd_ps started ===\n");
-	printk("PID    PPID   Command\n");
-	printk("------------------------\n");
-
-	/* Get current process */
-	//printk("DEBUG: Calling process_current()...\n");
-	struct z_process *current = process_current();
-	//printk("DEBUG: process_current() returned %p\n", current);
-
-	if (!current || current->pid == PID_INVALID) {
-		printk("ERROR: Invalid current process\n");
-		return -1;
+	printk("PID  PPID  STATE       NAME\n");
+	for (int i = 0; i < CONFIG_MAX_PROCESS_COUNT; i++) {
+		struct z_process *proc = process_get(i);
+		if (proc && proc->pid > 0) {
+			const char *state = "running";
+			if (signal_is_suspended(proc->pid) > 0) {
+				state = "suspended";
+			}
+			printk("%-4d %-4d  %-10s  (pid slot %d)\n",
+			       proc->pid,
+			       proc->parent ? proc->parent->pid : 0,
+			       state,
+			       i);
+		}
 	}
 
-	//printk("DEBUG: Current process PID = %d\n", current->pid);
+	pid_t suspended_pid = signal_get_suspended_fg_pid();
+	if (suspended_pid > 0) {
+		printk("\nSuspended foreground process: %d (use 'fg' to resume)\n", suspended_pid);
+	}
 
-	/* Print current process */
-	printk("%-6d %-6d %s\n", (int)current->pid, 0, "ps");
-
-	/* Print init process */
-	printk("%-6d %-6d %s\n", (int)PID_INIT, 0, "init");
-
-	//printk("DEBUG: cmd_ps about to return\n");
 	return 0;
+}
+
+/**
+ * @brief FG command - resume suspended foreground process
+ */
+static int cmd_fg(int argc, char **argv)
+{
+	pid_t suspended_pid = signal_get_suspended_fg_pid();
+
+	if (suspended_pid <= 0) {
+		printk("No suspended foreground process\n");
+		return 0;
+	}
+
+	printk("Resuming process PID=%d...\n", suspended_pid);
+	int ret = signal_resume_process(suspended_pid);
+
+	if (ret == 0) {
+		printk("Process %d resumed and brought to foreground\n", suspended_pid);
+	} else {
+		printk("Failed to resume process %d: %d\n", suspended_pid, ret);
+	}
+
+	return ret;
+}
+
+/**
+ * @brief Suspend command - send SIGTSTP to foreground process
+ * Alternative to Ctrl+D for shell environments without raw terminal input
+ */
+static int cmd_suspend(int argc, char **argv)
+{
+	pid_t fg_pgid = signal_get_foreground_pgid();
+
+	if (fg_pgid <= 0) {
+		printk("No foreground process to suspend\n");
+		return 0;
+	}
+
+	printk("Sending SIGTSTP to foreground process PID=%d...\n", fg_pgid);
+	int ret = kill(fg_pgid, SIGTSTP);
+
+	if (ret == 0) {
+		printk("Signal sent successfully. Use 'fg' to resume.\n");
+	} else {
+		printk("Failed to send signal: %d\n", ret);
+	}
+
+	return ret;
 }
 
 /**
@@ -600,7 +695,7 @@ static int cmd_loop(int argc, char **argv)
 	}
 
 	printk("Loop started (PID %d). Running for %d seconds...\n", proc->pid, duration_sec);
-	printk("Use 'sigint' command from another terminal to interrupt.\n");
+	printk("[loop] Press Ctrl+D to suspend, or Ctrl+C to interrupt\n");
 
 	/* Set this process as foreground to receive signals */
 	signal_set_foreground_pgid(proc->pid);
@@ -629,6 +724,10 @@ static int cmd_loop(int argc, char **argv)
 	if (!interrupted) {
 		printk("\nLoop completed (no signal received)\n");
 	}
+
+	/* Clear foreground */
+	signal_set_foreground_pgid(0);
+
 	printk("Loop exiting.\n");
 	return 0;
 }
@@ -754,9 +853,11 @@ static int cmd_test_signal(int argc, char **argv)
 SHELL_CMD_REGISTER(hello, "Print hello message", cmd_hello);
 SHELL_CMD_REGISTER(echo, "Echo arguments", cmd_echo);
 SHELL_CMD_REGISTER(ps, "List processes", cmd_ps);
+SHELL_CMD_REGISTER(fg, "Resume suspended foreground process", cmd_fg);
+SHELL_CMD_REGISTER(suspend, "Suspend foreground process (like Ctrl+Z)", cmd_suspend);
 SHELL_CMD_REGISTER(sleep, "Sleep for milliseconds", cmd_sleep);
 SHELL_CMD_REGISTER(test, "Process creation test", cmd_test);
-SHELL_CMD_REGISTER(loop, "Infinite loop for signal testing", cmd_loop);
+SHELL_CMD_REGISTER(loop, "Loop for signal testing (Ctrl+D to suspend, Ctrl+C to stop)", cmd_loop);
 SHELL_CMD_REGISTER(sigint, "Send SIGINT to foreground process", cmd_sigint);
 SHELL_CMD_REGISTER(test_signal, "Self-test signal delivery", cmd_test_signal);
 SHELL_CMD_REGISTER(getpid, "Show process ID", cmd_getpid);

@@ -18,10 +18,12 @@
 #include "shell_wildcard.h"
 
 /* Signal support for process-based shell */
-#ifdef CONFIG_PROCESS
+#ifdef CONFIG_PROCESS_MODEL
+#include <zephyr/kernel/process.h>
 extern pid_t signal_get_foreground_pgid(void);
 extern int kill(pid_t pid, int signo);
 #define SIGINT 2
+#define SIGTSTP 20
 #endif
 
 /* 2 == 1 char for cmd + 1 char for '\0' */
@@ -886,8 +888,14 @@ static void alt_metakeys_handle(const struct shell *sh, char data)
 
 static void ctrl_metakeys_handle(const struct shell *sh, char data)
 {
+	/* Debug: print all control characters */
+	if (data < 0x20) {
+		shell_fprintf(sh, SHELL_NORMAL, "[DEBUG] Control char received: 0x%02x\n", (unsigned char)data);
+	}
+
 	/* Optional feature */
 	if (!IS_ENABLED(CONFIG_SHELL_METAKEYS)) {
+		shell_fprintf(sh, SHELL_NORMAL, "[DEBUG] CONFIG_SHELL_METAKEYS is disabled!\n");
 		return;
 	}
 
@@ -901,7 +909,7 @@ static void ctrl_metakeys_handle(const struct shell *sh, char data)
 		break;
 
 	case SHELL_VT100_ASCII_CTRL_C: /* CTRL + C */
-#ifdef CONFIG_PROCESS
+#ifdef CONFIG_PROCESS_MODEL
 		/* Send SIGINT to foreground process if exists */
 		{
 			pid_t fg_pgid = signal_get_foreground_pgid();
@@ -926,24 +934,27 @@ static void ctrl_metakeys_handle(const struct shell *sh, char data)
 		break;
 
 	case SHELL_VT100_ASCII_CTRL_D: /* CTRL + D */
-#ifdef CONFIG_PROCESS
+		shell_fprintf(sh, SHELL_NORMAL, "[DEBUG] Ctrl+D detected\n");
+#ifdef CONFIG_PROCESS_MODEL
+		shell_fprintf(sh, SHELL_NORMAL, "[DEBUG] CONFIG_PROCESS_MODEL is defined\n");
 		/* Send SIGTSTP (suspend) to foreground process if exists */
 		{
-			extern int kill(pid_t pid, int sig);
-			extern pid_t signal_get_foreground_pgid(void);
-			#define SIGTSTP 20
-
 			pid_t fg_pgid = signal_get_foreground_pgid();
+			shell_fprintf(sh, SHELL_NORMAL, "[DEBUG] Foreground PID: %d\n", fg_pgid);
 			if (fg_pgid > 0) {
 				shell_fprintf(sh, SHELL_NORMAL, "^D\n");
 				int ret = kill(fg_pgid, SIGTSTP);
+				shell_fprintf(sh, SHELL_NORMAL, "[DEBUG] kill() returned: %d\n", ret);
 				if (ret == 0) {
 					shell_fprintf(sh, SHELL_NORMAL,
 						      "[Shell] Process %d suspended. Use 'fg' to resume.\n", fg_pgid);
 				}
 				break;
 			}
+			shell_fprintf(sh, SHELL_NORMAL, "[DEBUG] No foreground process, using default behavior\n");
 		}
+#else
+		shell_fprintf(sh, SHELL_NORMAL, "[DEBUG] CONFIG_PROCESS_MODEL is NOT defined\n");
 #endif
 		/* Default Ctrl+D behavior - delete character */
 		z_shell_op_char_delete(sh);
@@ -1137,8 +1148,13 @@ static void state_collect(const struct shell *sh)
 				if (isprint((int) data) != 0) {
 					z_flag_history_exit_set(sh, true);
 					z_shell_op_char_insert(sh, data);
-				} else if (z_flag_echo_get(sh)) {
-					ctrl_metakeys_handle(sh, data);
+				} else {
+					/* Debug: log all non-printable characters */
+					shell_fprintf(sh, SHELL_NORMAL, "[DEBUG] Non-printable: 0x%02x echo=%d\n",
+						      (unsigned char)data, z_flag_echo_get(sh));
+					if (z_flag_echo_get(sh)) {
+						ctrl_metakeys_handle(sh, data);
+					}
 				}
 				break;
 			}

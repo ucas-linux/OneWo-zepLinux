@@ -284,6 +284,8 @@ static int _handler_name(const struct shell *sh, size_t argc, char **argv) \
 	return ret; \
 }
 
+DEFINE_SHELL_HANDLER(shell_mkdir_handler, "mkdir")
+DEFINE_SHELL_HANDLER(shell_cat_handler, "cat")
 DEFINE_SHELL_HANDLER(shell_uptime_handler, "uptime")
 DEFINE_SHELL_HANDLER(shell_mem_handler, "mem")
 DEFINE_SHELL_HANDLER(shell_free_handler, "free")
@@ -295,9 +297,25 @@ DEFINE_SHELL_HANDLER(shell_benchmark_handler, "benchmark")
 DEFINE_SHELL_HANDLER(shell_stress_handler, "stress")
 DEFINE_SHELL_HANDLER(shell_reboot_handler, "reboot")
 DEFINE_SHELL_HANDLER(shell_fork_handler, "fork")
-DEFINE_SHELL_HANDLER(shell_loop_handler, "loop")
+/* loop runs in background so Ctrl+D can be processed */
+static int shell_loop_handler(const struct shell *sh, size_t argc, char **argv)
+{
+	const struct shell_cmd *cmd = shell_cmd_lookup("loop");
+	if (!cmd) {
+		shell_error(sh, "Command not found");
+		return -ENOENT;
+	}
+	/* Run loop in BACKGROUND (false) so shell can handle Ctrl+D */
+	int ret = shell_exec_command(cmd, argc, argv, false);
+	if (ret != 0 && ret != -EINVAL) {
+		shell_error(sh, "Command failed with code %d", ret);
+	}
+	return ret;
+}
 DEFINE_SHELL_HANDLER(shell_sigint_handler, "sigint")
 DEFINE_SHELL_HANDLER(shell_test_signal_handler, "test_signal")
+DEFINE_SHELL_HANDLER(shell_fg_handler, "fg")
+DEFINE_SHELL_HANDLER(shell_suspend_handler, "suspend")
 
 /* Register shell commands - these bridge to our process-based execution */
 SHELL_CMD_ARG_REGISTER(hello, NULL, "Print hello message (runs in new process)",
@@ -306,6 +324,10 @@ SHELL_CMD_ARG_REGISTER(echo, NULL, "Echo arguments (runs in new process)",
                        shell_echo_handler, 1, 10);
 SHELL_CMD_ARG_REGISTER(ps, NULL, "List processes (runs in new process)",
                        shell_ps_handler, 1, 0);
+SHELL_CMD_ARG_REGISTER(fg, NULL, "Resume suspended foreground process",
+                       shell_fg_handler, 1, 0);
+SHELL_CMD_ARG_REGISTER(suspend, NULL, "Suspend foreground process (like Ctrl+Z)",
+                       shell_suspend_handler, 1, 0);
 SHELL_CMD_ARG_REGISTER(getpid, NULL, "Show process ID (runs in new process)",
                        shell_getpid_handler, 1, 0);
 SHELL_CMD_ARG_REGISTER(info, NULL, "Show process info (runs in new process)",
@@ -343,9 +365,14 @@ SHELL_CMD_ARG_REGISTER(sigint, NULL, "Send SIGINT to foreground process",
 SHELL_CMD_ARG_REGISTER(test_signal, NULL, "Self-test signal delivery",
                        shell_test_signal_handler, 1, 0);
 
+SHELL_CMD_ARG_REGISTER(mkdir, NULL, "Create VFS directory",
+                       shell_mkdir_handler, 2, 0);
+SHELL_CMD_ARG_REGISTER(cat, NULL, "Print VFS file",
+                       shell_cat_handler, 2, 0);
+
 /* Bytecode VM shell commands */
 SHELL_CMD_ARG_REGISTER(ls, NULL, "List programs and commands",
-                       shell_ls_handler, 1, 0);
+                       shell_ls_handler, 1, 1);
 SHELL_CMD_ARG_REGISTER(upload, NULL, "Upload bytecode program",
                        shell_upload_handler, 3, 0);
 SHELL_CMD_ARG_REGISTER(upload_hex, NULL, "Upload bytecode from hex string",
@@ -386,6 +413,7 @@ int main(void)
 	printk("  free      - Show free memory\n");
 	printk("  benchmark - Run CPU benchmark\n");
 	printk("  ps        - List processes\n");
+	printk("  fg        - Resume suspended foreground process\n");
 	printk("  hello     - Print hello message\n");
 	printk("  getpid    - Show process ID\n");
 	printk("  info      - Show process info\n");
@@ -394,7 +422,7 @@ int main(void)
 	printk("  kill      - Terminate a process\n");
 	printk("  stress    - Stress test process creation\n");
 	printk("  fork      - Fork child processes\n");
-	printk("  loop      - Loop for signal testing\n");
+	printk("  loop      - Loop for signal testing (Ctrl+D to suspend, Ctrl+C to stop)\n");
 	printk("  sigint    - Send SIGINT to foreground process\n");
 	printk("  test_signal - Self-test signal delivery\n");
 	printk("  clear     - Clear screen\n");
@@ -404,6 +432,7 @@ int main(void)
 	printk("Each command runs in a separate process.\n");
 	printk("Run 'test_signal' to verify signal delivery works.\n");
 	printk("Press Ctrl+C to send SIGINT to foreground process.\n");
+	printk("Press Ctrl+D to suspend foreground process (use 'fg' to resume).\n");
 	printk("\n");
 
 	/* Return to let Zephyr shell handle input */
