@@ -284,6 +284,8 @@ static int _handler_name(const struct shell *sh, size_t argc, char **argv) \
 	return ret; \
 }
 
+DEFINE_SHELL_HANDLER(shell_mkdir_handler, "mkdir")
+DEFINE_SHELL_HANDLER(shell_cat_handler, "cat")
 DEFINE_SHELL_HANDLER(shell_uptime_handler, "uptime")
 DEFINE_SHELL_HANDLER(shell_mem_handler, "mem")
 DEFINE_SHELL_HANDLER(shell_free_handler, "free")
@@ -363,9 +365,14 @@ SHELL_CMD_ARG_REGISTER(sigint, NULL, "Send SIGINT to foreground process",
 SHELL_CMD_ARG_REGISTER(test_signal, NULL, "Self-test signal delivery",
                        shell_test_signal_handler, 1, 0);
 
+SHELL_CMD_ARG_REGISTER(mkdir, NULL, "Create VFS directory",
+                       shell_mkdir_handler, 2, 0);
+SHELL_CMD_ARG_REGISTER(cat, NULL, "Print VFS file",
+                       shell_cat_handler, 2, 0);
+
 /* Bytecode VM shell commands */
 SHELL_CMD_ARG_REGISTER(ls, NULL, "List programs and commands",
-                       shell_ls_handler, 1, 0);
+                       shell_ls_handler, 1, 1);
 SHELL_CMD_ARG_REGISTER(upload, NULL, "Upload bytecode program",
                        shell_upload_handler, 3, 0);
 SHELL_CMD_ARG_REGISTER(upload_hex, NULL, "Upload bytecode from hex string",

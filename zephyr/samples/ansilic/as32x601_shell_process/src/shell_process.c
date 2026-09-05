@@ -500,8 +500,16 @@ SYS_INIT(shell_process_init_wrapper, APPLICATION, CONFIG_KERNEL_INIT_PRIORITY_DE
 /**
  * @brief Shell command: ls - List available programs
  */
+/* Forward declaration from vfs_commands.c */
+extern int cmd_ls_vfs(int argc, char **argv);
+
 static int cmd_ls_exec(int argc, char **argv)
 {
+	/* If a path argument is given (starts with '/'), delegate to VFS ls */
+	if (argc > 1 && argv[1][0] == '/') {
+		return cmd_ls_vfs(argc, argv);
+	}
+
 	printk("Built-in commands:\n");
 	k_mutex_lock(&cmd_registry_lock, K_FOREVER);
 	for (int i = 0; i < command_count; i++) {

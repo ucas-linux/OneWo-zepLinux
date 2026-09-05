@@ -10,6 +10,7 @@
 #include <zephyr/kernel/process.h>
 #include <zephyr/sys/reboot.h>
 #include <zephyr/version.h>
+#include <zephyr/fs/fs.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -54,6 +55,53 @@ static int cmd_hello(int argc, char **argv)
  */
 static int cmd_echo(int argc, char **argv)
 {
+	/* Detect redirect: echo <text...> > <file> */
+	int redir_idx = -1;
+
+	for (int i = 1; i < argc; i++) {
+		if (strcmp(argv[i], ">") == 0 && i + 1 < argc) {
+			redir_idx = i;
+			break;
+		}
+	}
+
+	if (redir_idx > 0) {
+		/* Build the output string from tokens before '>' */
+		char buf[256];
+		int pos = 0;
+
+		for (int i = 1; i < redir_idx && pos < (int)sizeof(buf) - 2; i++) {
+			int n = strlen(argv[i]);
+
+			if (pos + n >= (int)sizeof(buf) - 2) {
+				n = (int)sizeof(buf) - 2 - pos;
+			}
+			memcpy(buf + pos, argv[i], n);
+			pos += n;
+			if (i < redir_idx - 1 && pos < (int)sizeof(buf) - 2) {
+				buf[pos++] = ' ';
+			}
+		}
+		buf[pos++] = '\n';
+		buf[pos]   = '\0';
+
+		/* Write to file */
+		const char *path = argv[redir_idx + 1];
+		struct fs_file_t f;
+
+		fs_file_t_init(&f);
+		int ret = fs_open(&f, path, FS_O_CREATE | FS_O_RDWR | FS_O_TRUNC);
+
+		if (ret != 0) {
+			printk("echo: cannot open '%s': %d\n", path, ret);
+			return ret;
+		}
+		fs_write(&f, buf, pos);
+		fs_close(&f);
+		return 0;
+	}
+
+	/* Normal echo to console */
 	for (int i = 1; i < argc; i++) {
 		printk("%s", argv[i]);
 		if (i < argc - 1) {

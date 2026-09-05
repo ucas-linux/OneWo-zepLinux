@@ -13,4 +13,5 @@ target_sources(app PRIVATE
     src/bytecode_vm.c
     src/anl_loader.c
     src/signal.c
+    src/vfs_commands.c
 )
